@@ -343,7 +343,7 @@ async function handleCreate() {
         >
           <!-- Branch Info -->
           <div class="min-w-0 flex-1">
-            <div class="h-5 flex items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0">
               <component
                 :is="b.isRemote ? Globe : GitBranch"
                 :class="['w-4 h-4 shrink-0', b.isCurrent ? 'text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-300']"
@@ -352,6 +352,30 @@ async function handleCreate() {
                 {{ b.name }}
               </span>
 
+              <!-- Badges on wider screens (sm and up) -->
+              <div v-if="b.isCurrent || b.upstream" class="hidden sm:flex items-center gap-1.5 shrink-0">
+                <span
+                  v-if="b.isCurrent"
+                  class="h-5 inline-flex items-center text-[10px] font-mono leading-none px-1.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold shrink-0"
+                >
+                  current
+                </span>
+
+                <span
+                  v-if="b.upstream"
+                  class="h-5 inline-flex items-center text-[10px] font-mono leading-none px-1.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60 shrink-0 truncate max-w-[140px]"
+                  :title="b.upstream"
+                >
+                  ↑ {{ b.upstream }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Badges on narrow screens (below sm) -->
+            <div
+              v-if="b.isCurrent || b.upstream"
+              class="flex sm:hidden items-center gap-1.5 mt-1 flex-wrap"
+            >
               <span
                 v-if="b.isCurrent"
                 class="h-5 inline-flex items-center text-[10px] font-mono leading-none px-1.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold shrink-0"
@@ -361,7 +385,7 @@ async function handleCreate() {
 
               <span
                 v-if="b.upstream"
-                class="h-5 inline-flex items-center text-[10px] font-mono leading-none px-1.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60 shrink-0 truncate max-w-[130px]"
+                class="h-5 inline-flex items-center text-[10px] font-mono leading-none px-1.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60 shrink-0 truncate max-w-[200px]"
                 :title="b.upstream"
               >
                 ↑ {{ b.upstream }}
@@ -369,7 +393,7 @@ async function handleCreate() {
             </div>
 
             <!-- Last Commit info if available -->
-            <div class="mt-1 h-4 flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+            <div class="mt-1 flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
               <template v-if="b.commitMsg || b.commitHash">
                 <span v-if="b.commitHash" class="text-zinc-400 shrink-0">{{ b.commitHash }}</span>
                 <span v-if="b.commitMsg" class="truncate text-zinc-500">{{ b.commitMsg }}</span>

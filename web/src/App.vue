@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Archive,
   Tag,
+  MoreHorizontal,
 } from 'lucide-vue-next'
 
 const repos = ref<Repo[]>([])
@@ -43,6 +44,8 @@ const showWorktreeModal = ref(false)
 const showBranchModal = ref(false)
 const showStashModal = ref(false)
 const showTagModal = ref(false)
+const showActionsDropdown = ref(false)
+const dropdownRef = ref<HTMLElement | null>(null)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -68,16 +71,26 @@ onMounted(async () => {
     }
   }
 
+  // Dismiss dropdown on outside clicks/taps
+  const handleClickOutside = (e: MouseEvent) => {
+    if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+      showActionsDropdown.value = false
+    }
+  }
+
   document.addEventListener('visibilitychange', handleVisibility)
+  document.addEventListener('pointerdown', handleClickOutside)
 
   onUnmounted(() => {
     disconnectSSE()
     document.removeEventListener('visibilitychange', handleVisibility)
+    document.removeEventListener('pointerdown', handleClickOutside)
   })
 })
 
 watch(activeRepoId, () => {
   connectSSE()
+  showActionsDropdown.value = false
   showTagModal.value = false
   showStashModal.value = false
   showBranchModal.value = false
@@ -93,11 +106,11 @@ watch(showWorktreeModal, (open) => {
   }
 })
 
-// Auto-collapse commit drawer whenever any modal or diff viewer opens
+// Auto-collapse commit drawer whenever any modal, dropdown, or diff viewer opens
 watch(
-  [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, showTagModal, () => !!activeDiff.value],
-  ([repo, sync, pr, wt, branch, stash, tag, diff]) => {
-    if (repo || sync || pr || wt || branch || stash || tag || diff) {
+  [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, showTagModal, showActionsDropdown, () => !!activeDiff.value],
+  ([repo, sync, pr, wt, branch, stash, tag, dropdown, diff]) => {
+    if (repo || sync || pr || wt || branch || stash || tag || dropdown || diff) {
       isCommitDrawerOpen.value = false
     }
   }
@@ -588,24 +601,24 @@ async function handleBranchCreated(branch: string) {
       <!-- Repository Selector Trigger -->
       <button
         type="button"
-        class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/60 transition-all max-w-[55%] text-left active:scale-95"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/60 transition-all min-w-0 shrink mr-2 max-w-xs sm:max-w-sm md:max-w-md text-left active:scale-95"
         @click="showRepoSelector = true"
       >
         <FolderGit2 class="w-4 h-4 text-emerald-400 shrink-0" />
-        <span class="text-xs font-semibold text-zinc-200 truncate font-mono">
+        <span class="text-xs font-semibold text-zinc-200 truncate font-mono min-w-0">
           {{ activeRepo ? activeRepo.name : 'Select Repository' }}
         </span>
         <ChevronDown class="w-3.5 h-3.5 text-zinc-400 shrink-0" />
       </button>
 
-      <!-- Action Icons: Sync, PR, Refresh -->
-      <div class="flex items-center gap-1.5">
-        <!-- Sync / Push Modal Trigger -->
+      <!-- Action Icons Area -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Sync / Push Modal Trigger (Always visible) -->
         <button
           v-if="status"
           type="button"
           :class="[
-            'p-2 rounded-xl border transition-all active:scale-95',
+            'p-2 rounded-xl border transition-all active:scale-95 shrink-0',
             status.ahead > 0
               ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
               : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-zinc-200',
@@ -613,81 +626,196 @@ async function handleBranchCreated(branch: string) {
           title="Push to remote"
           @click="handleOpenSync"
         >
-          <UploadCloud class="w-4 h-4" />
+          <UploadCloud class="w-4 h-4 shrink-0" />
         </button>
 
-        <!-- Worktrees Trigger -->
+        <!-- PR Trigger (Always visible) -->
         <button
           v-if="status"
           type="button"
-          :class="[
-            'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1',
-            worktrees.length > 1
-              ? 'bg-teal-500/10 border-teal-500/30 text-teal-400'
-              : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-teal-400',
-          ]"
-          title="Git Worktrees"
-          @click="showWorktreeModal = true"
-        >
-          <GitFork class="w-4 h-4" />
-          <span v-if="worktrees.length > 1" class="text-[10px] font-mono font-bold">{{ worktrees.length }}</span>
-        </button>
-
-        <!-- Stashes Trigger -->
-        <button
-          v-if="status"
-          type="button"
-          :class="[
-            'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1',
-            (status.stashCount ?? 0) > 0
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-              : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-amber-400',
-          ]"
-          title="Git Stashes"
-          @click="showStashModal = true"
-        >
-          <Archive class="w-4 h-4" />
-          <span v-if="(status.stashCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.stashCount }}</span>
-        </button>
-
-        <!-- Tags Trigger -->
-        <button
-          v-if="status"
-          type="button"
-          :class="[
-            'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1',
-            (status.tagCount ?? 0) > 0
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-emerald-400',
-          ]"
-          title="Git Tags"
-          @click="showTagModal = true"
-        >
-          <Tag class="w-4 h-4" />
-          <span v-if="(status.tagCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.tagCount }}</span>
-        </button>
-
-        <!-- PR Trigger -->
-        <button
-          v-if="status"
-          type="button"
-          class="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-all active:scale-95"
+          class="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-all active:scale-95 shrink-0"
           title="GitHub Pull Request"
           @click="handleOpenPR"
         >
-          <GitPullRequest class="w-4 h-4" />
+          <GitPullRequest class="w-4 h-4 shrink-0" />
         </button>
 
-        <!-- Refresh Button -->
-        <button
-          type="button"
-          class="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-all active:scale-95"
-          :disabled="loading"
-          title="Refresh Git status"
-          @click="() => refreshStatus(false, 'refresh-button')"
-        >
-          <RefreshCw :class="['w-4 h-4', loading ? 'animate-spin text-emerald-400' : '']" />
-        </button>
+        <!-- Secondary Icons on wider screens (550px and up) -->
+        <div class="hidden min-[550px]:flex items-center gap-1.5 shrink-0">
+          <!-- Worktrees Trigger -->
+          <button
+            v-if="status"
+            type="button"
+            :class="[
+              'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1 shrink-0',
+              worktrees.length > 1
+                ? 'bg-teal-500/10 border-teal-500/30 text-teal-400'
+                : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-teal-400',
+            ]"
+            title="Git Worktrees"
+            @click="showWorktreeModal = true"
+          >
+            <GitFork class="w-4 h-4 shrink-0" />
+            <span v-if="worktrees.length > 1" class="text-[10px] font-mono font-bold">{{ worktrees.length }}</span>
+          </button>
+
+          <!-- Stashes Trigger -->
+          <button
+            v-if="status"
+            type="button"
+            :class="[
+              'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1 shrink-0',
+              (status.stashCount ?? 0) > 0
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-amber-400',
+            ]"
+            title="Git Stashes"
+            @click="showStashModal = true"
+          >
+            <Archive class="w-4 h-4 shrink-0" />
+            <span v-if="(status.stashCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.stashCount }}</span>
+          </button>
+
+          <!-- Tags Trigger -->
+          <button
+            v-if="status"
+            type="button"
+            :class="[
+              'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1 shrink-0',
+              (status.tagCount ?? 0) > 0
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-emerald-400',
+            ]"
+            title="Git Tags"
+            @click="showTagModal = true"
+          >
+            <Tag class="w-4 h-4 shrink-0" />
+            <span v-if="(status.tagCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.tagCount }}</span>
+          </button>
+
+          <!-- Refresh Button -->
+          <button
+            type="button"
+            class="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-all active:scale-95 shrink-0"
+            :disabled="loading"
+            title="Refresh Git status"
+            @click="() => refreshStatus(false, 'refresh-button')"
+          >
+            <RefreshCw :class="['w-4 h-4 shrink-0', loading ? 'animate-spin text-emerald-400' : '']" />
+          </button>
+        </div>
+
+        <!-- Actions Dropdown on narrow screens (below 550px) -->
+        <div class="relative min-[550px]:hidden shrink-0" ref="dropdownRef">
+          <button
+            type="button"
+            :class="[
+              'p-2 rounded-xl border transition-all active:scale-95 relative flex items-center justify-center shrink-0',
+              showActionsDropdown
+                ? 'bg-zinc-700/90 border-zinc-600 text-white'
+                : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-zinc-200'
+            ]"
+            title="More actions"
+            aria-label="More actions"
+            @click="showActionsDropdown = !showActionsDropdown"
+          >
+            <MoreHorizontal class="w-4 h-4" />
+            <span
+              v-if="(status?.stashCount ?? 0) > 0 || (status?.tagCount ?? 0) > 0"
+              class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-zinc-900"
+            />
+          </button>
+
+          <!-- Dropdown Menu -->
+          <Transition
+            enter-active-class="transition duration-100 ease-out"
+            enter-from-class="transform scale-95 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-in"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-95 opacity-0"
+          >
+            <div
+              v-if="showActionsDropdown"
+              class="absolute right-0 top-full mt-2 w-48 py-1.5 bg-zinc-900/95 backdrop-blur-xl border border-zinc-800/90 rounded-2xl shadow-2xl z-50 flex flex-col divide-y divide-zinc-800/60 touch-auto font-sans"
+            >
+              <!-- Secondary Git Actions -->
+              <div class="p-1 space-y-0.5">
+                <!-- Worktrees -->
+                <button
+                  v-if="status"
+                  type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors"
+                  @click="showActionsDropdown = false; showWorktreeModal = true"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <GitFork class="w-4 h-4 text-teal-400 shrink-0" />
+                    <span class="truncate">Worktrees</span>
+                  </div>
+                  <span
+                    v-if="worktrees.length > 1"
+                    class="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-teal-500/20 text-teal-400 rounded-md border border-teal-500/30 shrink-0"
+                  >
+                    {{ worktrees.length }}
+                  </span>
+                </button>
+
+                <!-- Stashes -->
+                <button
+                  v-if="status"
+                  type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors"
+                  @click="showActionsDropdown = false; showStashModal = true"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <Archive class="w-4 h-4 text-amber-400 shrink-0" />
+                    <span class="truncate">Stashes</span>
+                  </div>
+                  <span
+                    v-if="(status.stashCount ?? 0) > 0"
+                    class="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 rounded-md border border-amber-500/30 shrink-0"
+                  >
+                    {{ status.stashCount }}
+                  </span>
+                </button>
+
+                <!-- Tags -->
+                <button
+                  v-if="status"
+                  type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors"
+                  @click="showActionsDropdown = false; showTagModal = true"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <Tag class="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span class="truncate">Tags</span>
+                  </div>
+                  <span
+                    v-if="(status.tagCount ?? 0) > 0"
+                    class="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 rounded-md border border-emerald-500/30 shrink-0"
+                  >
+                    {{ status.tagCount }}
+                  </span>
+                </button>
+              </div>
+
+              <!-- Refresh Status -->
+              <div class="p-1">
+                <button
+                  type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors disabled:opacity-50"
+                  :disabled="loading"
+                  @click="showActionsDropdown = false; refreshStatus(false, 'dropdown-refresh')"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <RefreshCw :class="['w-4 h-4 text-zinc-400 shrink-0', loading ? 'animate-spin text-emerald-400' : '']" />
+                    <span class="truncate">Refresh Status</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
       </div>
     </header>
 
