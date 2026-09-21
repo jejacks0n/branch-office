@@ -34,7 +34,14 @@ SSH key functionality built-in, so if you value signing your commits, it's great
 
 ---
 
-## Quick Start
+## Installation
+
+### Homebrew
+
+```bash
+brew tap jejacks0n/tap
+brew install broffice
+```
 
 ### Build from Source
 
@@ -148,3 +155,15 @@ make test
 # or
 go test -v ./...
 ```
+
+---
+
+## License
+
+Branch Office is released under the MIT license:
+
+* https://opensource.org/licenses/MIT
+
+Copyright 2026 &copy; [jejacks0n](https://github.com/jejacks0n)
+
+## Make Code Not War ♥

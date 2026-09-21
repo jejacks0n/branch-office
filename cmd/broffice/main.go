@@ -18,6 +18,12 @@ import (
 //go:embed all:dist
 var embeddedAssets embed.FS
 
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	defaultAddr := os.Getenv("BROFFICE_ADDR")
 	if defaultAddr == "" {
@@ -34,7 +40,13 @@ func main() {
 	configPath := flag.String("config", "", "Custom path to config.json")
 	sshKey := flag.String("ssh-key", os.Getenv("BROFFICE_SSH_KEY"), "Path to a dedicated SSH private key (bypasses system SSH agent)")
 	noSign := flag.Bool("no-sign", os.Getenv("BROFFICE_NO_SIGN") == "true" || os.Getenv("BROFFICE_NO_SIGN") == "1", "Disable Git commit GPG/SSH signing")
+	showVersion := flag.Bool("version", false, "Print version information and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("broffice version %s (%s, %s)\n", version, commit, date)
+		return
+	}
 
 	store, err := config.NewStore(*configPath)
 	if err != nil {
@@ -95,7 +107,11 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("==================================================")
-	fmt.Println("             Branch Office (broffice)             ")
+	if version != "dev" {
+		fmt.Printf("         Branch Office (broffice) v%s\n", version)
+	} else {
+		fmt.Println("             Branch Office (broffice)             ")
+	}
 	fmt.Println("        Mobile Remote Git Control Center          ")
 	fmt.Println("==================================================")
 
