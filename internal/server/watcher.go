@@ -177,6 +177,11 @@ func (rw *RepoWatcher) loop() {
 				return
 			}
 
+			// Ignore standalone chmod/atime attribute touches (especially on macOS kqueue)
+			if event.Op == fsnotify.Chmod {
+				continue
+			}
+
 			if shouldIgnoreEvent(rw.repoPath, event.Name) {
 				continue
 			}
