@@ -112,9 +112,9 @@ tailscale serve --bg 8080
 
 ---
 
-## Remote SSH & Biometric Agent (SecretAgent / 1Password) Setup
+## SSH & Biometrics
 
-If you use **SecretAgent**, **1Password SSH Agent**, or hardware security keys on your host machine, Git operations
+f you use **SecretAgent**, **1Password SSH Agent**, or hardware security keys on your host machine, Git operations
 normally require a physical fingerprint or password prompt. When accessing Branch Office remotely, you cannot provide
 biometric authorization, which causes pushes or commits to block or fail.
 
