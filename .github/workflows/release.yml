@@ -35,6 +35,9 @@ jobs:
           npm --prefix web ci
           npm --prefix web run build
 
+      - name: Run Go Tests
+        run: go test -v ./...
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

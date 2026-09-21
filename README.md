@@ -39,6 +39,12 @@ SSH key functionality built-in, so if you value signing your commits, it's great
 ### Homebrew
 
 ```bash
+brew install jejacks0n/tap/broffice
+```
+
+or
+
+```bash
 brew tap jejacks0n/tap
 brew install broffice
 ```
