@@ -862,69 +862,85 @@ async function handleBranchCreated(branch: string) {
       <!-- Active Repo Git Control View -->
       <template v-else-if="status">
         <!-- Branch Header Status Pill -->
-        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80">
-          <!-- Interactive Branch Switcher Trigger -->
-          <button
-            type="button"
-            class="flex items-center gap-2.5 min-w-0 pr-2 group text-left cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
-            title="Switch or create branches"
-            @click="showBranchModal = true"
-          >
-            <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors shrink-0">
-              <GitBranch class="w-4 h-4" />
-            </div>
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5">
-                <span class="text-xs font-semibold text-zinc-200 group-hover:text-emerald-300 font-mono truncate block">
+        <div class="p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex flex-col gap-2">
+          <!-- Line 1: Interactive Branch Switcher + Ahead/Behind -->
+          <div class="flex items-center justify-between gap-2 min-w-0">
+            <button
+              type="button"
+              class="flex items-center gap-2.5 min-w-0 flex-1 group text-left cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
+              title="Switch or create branches"
+              @click="showBranchModal = true"
+            >
+              <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors shrink-0">
+                <GitBranch class="w-4 h-4" />
+              </div>
+              <div class="min-w-0 flex items-center gap-1.5 flex-1">
+                <span class="text-xs font-semibold text-zinc-200 group-hover:text-emerald-300 font-mono truncate">
                   {{ status.branch }}
                 </span>
                 <ChevronDown class="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 shrink-0" />
               </div>
-              <span v-if="status.upstream" class="text-[11px] text-zinc-500 font-mono truncate block">
-                {{ status.upstream }}
-              </span>
-            </div>
-          </button>
-
-          <div class="flex items-center gap-2 shrink-0">
-            <!-- Worktree quick pill -->
-            <button
-              v-if="worktrees.length > 0"
-              type="button"
-              class="px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/20 text-[11px] font-mono font-medium flex items-center gap-1 active:scale-95"
-              title="View and switch Git Worktrees"
-              @click="showWorktreeModal = true"
-            >
-              <GitFork class="w-3 h-3" />
-              <span>{{ worktrees.length }} {{ worktrees.length === 1 ? 'worktree' : 'worktrees' }}</span>
-            </button>
-
-            <!-- Stash quick pill -->
-            <button
-              v-if="(status.stashCount ?? 0) > 0"
-              type="button"
-              class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-mono font-medium flex items-center gap-1 active:scale-95"
-              title="View Git Stashes"
-              @click="showStashModal = true"
-            >
-              <Archive class="w-3 h-3" />
-              <span>{{ status.stashCount }} {{ status.stashCount === 1 ? 'stash' : 'stashes' }}</span>
             </button>
 
             <!-- Ahead / Behind badge -->
-            <div class="flex items-center gap-1.5 text-[11px] font-mono">
+            <div v-if="status.ahead > 0 || status.behind > 0" class="flex items-center gap-1.5 text-[11px] font-mono shrink-0">
               <span
                 v-if="status.ahead > 0"
                 class="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium"
+                title="Commits ahead of remote"
               >
                 +{{ status.ahead }}
               </span>
               <span
                 v-if="status.behind > 0"
                 class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 border border-zinc-700/60 font-medium"
+                title="Commits behind remote"
               >
                 -{{ status.behind }}
               </span>
+            </div>
+          </div>
+
+          <!-- Line 2: Upstream branch info + Quick pills (Worktrees, Stashes) -->
+          <div
+            v-if="status.upstream || worktrees.length > 0 || (status.stashCount ?? 0) > 0"
+            class="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-800/50 text-[11px] font-mono min-w-0"
+          >
+            <!-- Upstream tracking -->
+            <div class="min-w-0 flex items-center gap-1 text-zinc-500 truncate">
+              <span v-if="status.upstream" class="truncate" :title="status.upstream">
+                ↑ {{ status.upstream }}
+              </span>
+              <span v-else class="text-zinc-600 italic">No upstream</span>
+            </div>
+
+            <!-- Quick pills with collapsed words on narrow screens -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <!-- Worktree quick pill -->
+              <button
+                v-if="worktrees.length > 0"
+                type="button"
+                class="px-2 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95"
+                title="View and switch Git Worktrees"
+                @click="showWorktreeModal = true"
+              >
+                <GitFork class="w-3 h-3" />
+                <span>{{ worktrees.length }}</span>
+                <span class="hidden sm:inline">{{ worktrees.length === 1 ? 'worktree' : 'worktrees' }}</span>
+              </button>
+
+              <!-- Stash quick pill -->
+              <button
+                v-if="(status.stashCount ?? 0) > 0"
+                type="button"
+                class="px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95"
+                title="View Git Stashes"
+                @click="showStashModal = true"
+              >
+                <Archive class="w-3 h-3" />
+                <span>{{ status.stashCount }}</span>
+                <span class="hidden sm:inline">{{ status.stashCount === 1 ? 'stash' : 'stashes' }}</span>
+              </button>
             </div>
           </div>
         </div>

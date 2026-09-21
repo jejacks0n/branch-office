@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Worktree } from '../types'
-import { GitFork, Plus, Trash2, Check, X, GitBranch, ArrowRight } from 'lucide-vue-next'
+import { GitFork, Plus, Trash2, X, GitBranch, ArrowRight } from 'lucide-vue-next'
 import ConfirmModal from './ConfirmModal.vue'
 
 const props = defineProps<{
@@ -209,35 +209,25 @@ function confirmDelete() {
             </div>
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center gap-1.5 shrink-0">
-            <template v-if="wt.path === currentPath">
-              <div
-                class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold"
-              >
-                <Check class="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Active</span>
-              </div>
-            </template>
-            <template v-else>
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1 transition-all active:scale-95"
-                @click="emit('switch', wt.path)"
-              >
-                <span>Switch</span>
-                <ArrowRight class="w-3 h-3" />
-              </button>
-              <button
-                v-if="!wt.isMain"
-                type="button"
-                class="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                title="Remove worktree"
-                @click="promptDelete(wt)"
-              >
-                <Trash2 class="w-4 h-4" />
-              </button>
-            </template>
+          <!-- Actions (only for non-current worktrees) -->
+          <div v-if="wt.path !== currentPath" class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              class="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1 transition-all active:scale-95"
+              @click="emit('switch', wt.path)"
+            >
+              <span>Switch</span>
+              <ArrowRight class="w-3 h-3" />
+            </button>
+            <button
+              v-if="!wt.isMain"
+              type="button"
+              class="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Remove worktree"
+              @click="promptDelete(wt)"
+            >
+              <Trash2 class="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

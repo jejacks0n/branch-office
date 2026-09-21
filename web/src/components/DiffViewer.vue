@@ -10,7 +10,6 @@ import {
   ChevronRight,
   ChevronLeft,
   FileCode,
-  Check,
 } from 'lucide-vue-next'
 import ConfirmModal from './ConfirmModal.vue'
 

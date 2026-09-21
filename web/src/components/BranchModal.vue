@@ -6,7 +6,6 @@ import {
   GitBranch,
   Search,
   Plus,
-  Check,
   X,
   ArrowRight,
   Globe,
@@ -402,18 +401,9 @@ async function handleCreate() {
             </div>
           </div>
 
-          <!-- Switch Action Button / Indicator -->
-          <div class="shrink-0 flex items-center">
-            <div
-              v-if="b.isCurrent"
-              class="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20"
-              title="Current active branch"
-            >
-              <Check class="w-3.5 h-3.5" />
-            </div>
-
+          <!-- Switch Action Button (only for non-current branches) -->
+          <div v-if="!b.isCurrent" class="shrink-0 flex items-center">
             <button
-              v-else
               type="button"
               :disabled="switchingBranch !== null"
               class="h-7 px-3 rounded-xl bg-zinc-800 hover:bg-emerald-600 hover:text-white text-zinc-300 border border-zinc-700/80 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"

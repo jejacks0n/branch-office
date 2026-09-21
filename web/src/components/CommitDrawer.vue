@@ -216,7 +216,7 @@ function toggleOpen() {
           @click="handleSubmit"
         >
           <Check class="w-4 h-4 stroke-[2.5]" />
-          <span>{{ amend ? 'Amend Commit' : 'Commit Changes' }}</span>
+          <span>{{ amend ? 'Amend Commit' : 'Commit' }}</span>
         </button>
       </div>
     </div>

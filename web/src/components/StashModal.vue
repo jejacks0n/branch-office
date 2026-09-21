@@ -11,7 +11,6 @@ import {
   ChevronDown,
   ChevronUp,
   FileCode,
-  Check,
 } from 'lucide-vue-next'
 import type { StashItem } from '../types'
 import { api } from '../api'
