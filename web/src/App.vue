@@ -55,6 +55,9 @@ const showActionsDropdown = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 
 const loading = ref(false)
+// Which remote operation is in flight. Separate from `loading`, which is shared by
+// refreshes, diff loads and PR checks and so can't say what the sync modal should show.
+const syncOp = ref<'push' | 'force-push' | 'pull' | 'fetch' | null>(null)
 const error = ref<string | null>(null)
 const sseConnected = ref(false)
 const isCommitDrawerOpen = ref(false)
@@ -513,6 +516,7 @@ async function handlePush(options: { forceWithLease: boolean; setUpstream: boole
   if (!activeRepoId.value) return
   try {
     loading.value = true
+    syncOp.value = options.forceWithLease ? 'force-push' : 'push'
     error.value = null
     await api.push(activeRepoId.value, options.forceWithLease, options.setUpstream)
     showSyncModal.value = false
@@ -521,6 +525,7 @@ async function handlePush(options: { forceWithLease: boolean; setUpstream: boole
     error.value = err.message || 'Failed to push'
   } finally {
     loading.value = false
+    syncOp.value = null
   }
 }
 
@@ -528,6 +533,7 @@ async function handlePull(options: { rebase: boolean; setUpstream: boolean }) {
   if (!activeRepoId.value) return
   try {
     loading.value = true
+    syncOp.value = 'pull'
     error.value = null
     await api.pull(activeRepoId.value, options.rebase, options.setUpstream)
     showSyncModal.value = false
@@ -536,6 +542,7 @@ async function handlePull(options: { rebase: boolean; setUpstream: boolean }) {
     error.value = err.message || 'Failed to pull'
   } finally {
     loading.value = false
+    syncOp.value = null
   }
 }
 
@@ -543,6 +550,7 @@ async function handleFetch() {
   if (!activeRepoId.value) return
   try {
     loading.value = true
+    syncOp.value = 'fetch'
     error.value = null
     await api.fetch(activeRepoId.value)
     await refreshStatus(true, 'fetch-complete')
@@ -550,6 +558,7 @@ async function handleFetch() {
     error.value = err.message || 'Failed to fetch'
   } finally {
     loading.value = false
+    syncOp.value = null
   }
 }
 
@@ -1082,6 +1091,7 @@ async function handleBranchCreated(branch: string) {
       :upstream="status.upstream"
       :ahead="status.ahead"
       :behind="status.behind"
+      :busy="syncOp"
       @push="handlePush"
       @pull="handlePull"
       @fetch="handleFetch"

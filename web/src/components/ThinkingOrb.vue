@@ -10,6 +10,8 @@ const props = withDefaults(
     speed?: number
     paused?: boolean
     dark?: boolean
+    /** CSS color for the ink. Unset keeps the library's neutral grayscale. */
+    color?: string
   }>(),
   {
     state: 'working',
@@ -38,6 +40,18 @@ function render(ctx: CanvasRenderingContext2D, dpr: number) {
   ctx.clearRect(0, 0, s, s)
   if (draw) {
     draw(ctx, s, clock, props.dark, opts)
+  }
+  // The engine paints grayscale ink and encodes the shape in alpha, so recolouring is
+  // lossless: `source-in` keeps each pixel's existing alpha and swaps only the colour.
+  // Not a filter and not a library patch. Keep `dark` on so the alpha tuning still suits
+  // a dark surface.
+  if (props.color) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-in'
+    ctx.globalAlpha = 1
+    ctx.fillStyle = props.color
+    ctx.fillRect(0, 0, s, s)
+    ctx.restore()
   }
 }
 
@@ -86,7 +100,7 @@ const handleVisibility = () => {
 }
 
 watch(
-  () => [props.state, props.size, props.speed, props.dark],
+  () => [props.state, props.size, props.speed, props.dark, props.color],
   () => {
     setupCanvas()
   }

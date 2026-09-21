@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-vue-next'
 import ConfirmModal from './ConfirmModal.vue'
+import ThinkingOrb from './ThinkingOrb.vue'
 
 const props = defineProps<{
   show: boolean
@@ -18,6 +19,8 @@ const props = defineProps<{
   upstream: string
   ahead: number
   behind: number
+  /** Remote operation currently in flight, if any. Locks every action while set. */
+  busy?: 'push' | 'force-push' | 'pull' | 'fetch' | null
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +33,8 @@ const emit = defineEmits<{
 const showForceConfirm = ref(false)
 const setUpstream = ref(false)
 const rebase = ref(false)
+
+const isBusy = computed(() => !!props.busy)
 
 const isDetached = computed(() => !props.branch || props.branch === 'HEAD' || props.branch.includes('(detached)'))
 
@@ -130,12 +135,19 @@ function handleFetch() {
             <!-- Fetch latest button -->
             <button
               type="button"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-300 hover:text-white text-xs font-medium transition-all active:scale-95 shrink-0"
+              :disabled="isBusy"
+              :class="[
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all active:scale-95 shrink-0',
+                busy === 'fetch'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 cursor-wait'
+                  : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700/60 text-zinc-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed',
+              ]"
               title="Fetch latest remote branches and commits"
               @click="handleFetch"
             >
-              <RefreshCw class="w-3.5 h-3.5" />
-              <span>Fetch</span>
+              <ThinkingOrb v-if="busy === 'fetch'" state="composing" color="#34d399" :size="20" class="-my-0.5 shrink-0" aria-hidden="true" />
+              <RefreshCw v-else class="w-3.5 h-3.5" />
+              <span>{{ busy === 'fetch' ? 'Fetching...' : 'Fetch' }}</span>
             </button>
           </div>
         </div>
@@ -144,16 +156,23 @@ function handleFetch() {
         <div class="space-y-2">
           <button
             type="button"
+            :disabled="isBusy"
             :class="[
               'w-full py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all',
-              behind > 0
-                ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white'
-                : 'bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60',
+              busy === 'pull'
+                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 cursor-wait'
+                : [
+                    'disabled:opacity-40 disabled:cursor-not-allowed',
+                    behind > 0
+                      ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white'
+                      : 'bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60',
+                  ],
             ]"
             @click="handlePull"
           >
-            <DownloadCloud class="w-4 h-4" />
-            <span>Pull from Remote</span>
+            <ThinkingOrb v-if="busy === 'pull'" state="composing" color="#34d399" :size="20" class="shrink-0" aria-hidden="true" />
+            <DownloadCloud v-else class="w-4 h-4" />
+            <span>{{ busy === 'pull' ? 'Pulling...' : 'Pull from Remote' }}</span>
           </button>
 
           <div class="flex items-center justify-between text-xs text-zinc-400 px-1">
@@ -195,28 +214,40 @@ function handleFetch() {
           <!-- Regular Push Button -->
           <button
             type="button"
-            :disabled="isDetached"
+            :disabled="isDetached || isBusy"
             :class="[
-              'w-full py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed',
-              ahead > 0 && behind === 0 && !isDetached
-                ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white'
-                : 'bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60',
+              'w-full py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all',
+              busy === 'push'
+                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 cursor-wait'
+                : [
+                    'disabled:opacity-40 disabled:cursor-not-allowed',
+                    ahead > 0 && behind === 0 && !isDetached
+                      ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white'
+                      : 'bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60',
+                  ],
             ]"
             @click="handleRegularPush"
           >
-            <UploadCloud class="w-4 h-4" />
-            <span>Push to Remote</span>
+            <ThinkingOrb v-if="busy === 'push'" state="composing" color="#34d399" :size="20" class="shrink-0" aria-hidden="true" />
+            <UploadCloud v-else class="w-4 h-4" />
+            <span>{{ busy === 'push' ? 'Pushing...' : 'Push to Remote' }}</span>
           </button>
 
           <!-- Force Push Button with Lease -->
           <button
             type="button"
-            :disabled="isDetached"
-            class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-zinc-800/80 hover:bg-red-950/40 text-red-400 hover:text-red-300 border border-zinc-700/60 hover:border-red-500/40 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="isDetached || isBusy"
+            :class="[
+              'w-full py-2.5 px-4 rounded-xl text-xs font-semibold border flex items-center justify-center gap-2 transition-all active:scale-[0.99]',
+              busy === 'force-push'
+                ? 'bg-red-950/40 border-red-500/40 text-red-300 cursor-wait'
+                : 'bg-zinc-800/80 hover:bg-red-950/40 text-red-400 hover:text-red-300 border-zinc-700/60 hover:border-red-500/40 disabled:opacity-40 disabled:cursor-not-allowed',
+            ]"
             @click="showForceConfirm = true"
           >
-            <ShieldAlert class="w-4 h-4" />
-            <span>Force Push (--force-with-lease)</span>
+            <ThinkingOrb v-if="busy === 'force-push'" state="composing" color="#fca5a5" :size="20" class="-my-0.5 shrink-0" aria-hidden="true" />
+            <ShieldAlert v-else class="w-4 h-4" />
+            <span>{{ busy === 'force-push' ? 'Force pushing...' : 'Force Push (--force-with-lease)' }}</span>
           </button>
         </div>
       </div>
