@@ -123,11 +123,24 @@ export const api = {
     return request<{ message: string }>(`/repos/${repoId}/last-commit`)
   },
 
-  // Push
+  // Push / Pull / Sync
   async push(repoId: string, forceWithLease = false, setUpstream = false): Promise<{ success: boolean }> {
     return request<{ success: boolean }>(`/repos/${repoId}/push`, {
       method: 'POST',
       body: JSON.stringify({ forceWithLease, setUpstream }),
+    })
+  },
+
+  async pull(repoId: string, rebase = false, setUpstream = false): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/repos/${repoId}/pull`, {
+      method: 'POST',
+      body: JSON.stringify({ rebase, setUpstream }),
+    })
+  },
+
+  async fetch(repoId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/repos/${repoId}/fetch`, {
+      method: 'POST',
     })
   },
 

@@ -108,13 +108,8 @@ func (c *Client) DiscardAll() error {
 	return err
 }
 
-func (c *Client) Commit(message string, amend bool) error {
-	msg := strings.TrimSpace(message)
-	if msg == "" {
-		return errors.New("commit message cannot be empty")
-	}
-
-	args := []string{}
+func (c *Client) signingArgs() []string {
+	var args []string
 	if c.DisableSigning {
 		args = append(args, "-c", "commit.gpgSign=false", "-c", "tag.gpgSign=false", "-c", "gpg.ssh.defaultKeyCommand=")
 	} else if c.SSHKey != "" {
@@ -130,6 +125,16 @@ func (c *Client) Commit(message string, amend bool) error {
 			args = append(args, "-c", "commit.gpgSign=false", "-c", "tag.gpgSign=false", "-c", "gpg.ssh.defaultKeyCommand=")
 		}
 	}
+	return args
+}
+
+func (c *Client) Commit(message string, amend bool) error {
+	msg := strings.TrimSpace(message)
+	if msg == "" {
+		return errors.New("commit message cannot be empty")
+	}
+
+	args := c.signingArgs()
 	args = append(args, "commit", "-m", msg)
 	if amend {
 		args = append(args, "--amend")
@@ -156,3 +161,29 @@ func (c *Client) Push(forceWithLease bool, setUpstream bool) error {
 	_, err := c.Run(args...)
 	return err
 }
+
+func (c *Client) Pull(rebase bool, setUpstream bool) error {
+	branch := c.GetCurrentBranch()
+	if branch == "" || branch == "HEAD" {
+		return errors.New("cannot pull detached HEAD")
+	}
+
+	if setUpstream {
+		_, _ = c.Run("branch", fmt.Sprintf("--set-upstream-to=origin/%s", branch), branch)
+	}
+
+	args := c.signingArgs()
+	args = append(args, "pull")
+	if rebase {
+		args = append(args, "--rebase")
+	}
+
+	_, err := c.Run(args...)
+	return err
+}
+
+func (c *Client) Fetch() error {
+	_, err := c.Run("fetch", "--prune")
+	return err
+}
+

@@ -52,6 +52,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/repos/{id}/last-commit", s.withRepo(s.handleGetLastCommitMessage))
 	mux.HandleFunc("POST /api/repos/{id}/generate-commit-message", s.withRepo(s.handleGenerateCommitMessage))
 	mux.HandleFunc("POST /api/repos/{id}/push", s.withRepo(s.handlePush))
+	mux.HandleFunc("POST /api/repos/{id}/pull", s.withRepo(s.handlePull))
+	mux.HandleFunc("POST /api/repos/{id}/fetch", s.withRepo(s.handleFetch))
 
 	// GitHub PR endpoints
 	mux.HandleFunc("GET /api/repos/{id}/pr", s.withRepo(s.handlePRStatus))
@@ -494,6 +496,28 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request, repo *config
 	}
 
 	if err := client.Push(body.ForceWithLease, body.SetUpstream); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+func (s *Server) handlePull(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	var body struct {
+		Rebase      bool `json:"rebase"`
+		SetUpstream bool `json:"setUpstream"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	if err := client.Pull(body.Rebase, body.SetUpstream); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	if err := client.Fetch(); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

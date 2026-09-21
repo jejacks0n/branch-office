@@ -605,5 +605,80 @@ func TestRouterEndpoints(t *testing.T) {
 			t.Fatalf("expected remaining tag 'v1.0.0', got '%s'", tagsAfter[0].Name)
 		}
 	})
+
+	// 12. Test pull and fetch
+	t.Run("POST /api/repos/{id}/pull and fetch", func(t *testing.T) {
+		// Checkout main and clean working tree first
+		exec.Command("git", "-C", repo.Path, "checkout", "main").Run()
+		exec.Command("git", "-C", repo.Path, "reset", "--hard").Run()
+		exec.Command("git", "-C", repo.Path, "clean", "-fd").Run()
+
+		// Create a bare upstream remote
+		remoteDir := t.TempDir()
+		cmdInit := exec.Command("git", "init", "--bare", remoteDir)
+		if out, err := cmdInit.CombinedOutput(); err != nil {
+			t.Fatalf("failed to init bare remote: %v (%s)", err, out)
+		}
+
+		// Add remote to repo
+		cmdRemote := exec.Command("git", "-C", repo.Path, "remote", "add", "origin", remoteDir)
+		if out, err := cmdRemote.CombinedOutput(); err != nil {
+			t.Fatalf("failed to add remote: %v (%s)", err, out)
+		}
+
+		// Push main to origin with upstream
+		cmdPush := exec.Command("git", "-C", repo.Path, "push", "-u", "origin", "main")
+		if out, err := cmdPush.CombinedOutput(); err != nil {
+			t.Fatalf("failed to push to remote: %v (%s)", err, out)
+		}
+
+		// Test POST /api/repos/{id}/fetch
+		reqFetch := httptest.NewRequest("POST", "/api/repos/"+repo.ID+"/fetch", nil)
+		recFetch := httptest.NewRecorder()
+		handler.ServeHTTP(recFetch, reqFetch)
+		if recFetch.Code != http.StatusOK {
+			t.Fatalf("expected 200 from fetch, got %d: %s", recFetch.Code, recFetch.Body.String())
+		}
+
+		// Clone remote to another dir and make a commit
+		otherDir := t.TempDir()
+		cmdClone := exec.Command("git", "clone", remoteDir, otherDir)
+		if out, err := cmdClone.CombinedOutput(); err != nil {
+			t.Fatalf("failed to clone remote: %v (%s)", err, out)
+		}
+		newFile := filepath.Join(otherDir, "remote-file.txt")
+		os.WriteFile(newFile, []byte("from remote\n"), 0644)
+		exec.Command("git", "-C", otherDir, "add", ".").Run()
+		cmdCommit := exec.Command("git", "-C", otherDir, "-c", "user.name=Test", "-c", "user.email=test@test.com", "-c", "commit.gpgSign=false", "commit", "-m", "remote commit")
+		if out, err := cmdCommit.CombinedOutput(); err != nil {
+			t.Fatalf("failed to commit in otherDir: %v (%s)", err, out)
+		}
+		cmdOtherPush := exec.Command("git", "-C", otherDir, "push", "origin", "main")
+		if out, err := cmdOtherPush.CombinedOutput(); err != nil {
+			t.Fatalf("failed to push from otherDir: %v (%s)", err, out)
+		}
+
+		// Checkout main and clean working tree in test repo before pulling
+		exec.Command("git", "-C", repo.Path, "checkout", "main").Run()
+		exec.Command("git", "-C", repo.Path, "reset", "--hard").Run()
+		exec.Command("git", "-C", repo.Path, "clean", "-fd").Run()
+
+		// Test POST /api/repos/{id}/pull
+		pullPayload := `{"rebase":false}`
+		reqPull := httptest.NewRequest("POST", "/api/repos/"+repo.ID+"/pull", strings.NewReader(pullPayload))
+		reqPull.Header.Set("Content-Type", "application/json")
+		recPull := httptest.NewRecorder()
+		handler.ServeHTTP(recPull, reqPull)
+		if recPull.Code != http.StatusOK {
+			t.Fatalf("expected 200 from pull, got %d: %s", recPull.Code, recPull.Body.String())
+		}
+
+		// Verify remote-file.txt was pulled into repo.Path
+		pulledFile := filepath.Join(repo.Path, "remote-file.txt")
+		if _, err := os.Stat(pulledFile); err != nil {
+			t.Fatalf("expected remote-file.txt to exist after pull: %v", err)
+		}
+	})
 }
+
 

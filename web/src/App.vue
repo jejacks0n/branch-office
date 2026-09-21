@@ -476,9 +476,38 @@ async function handlePush(options: { forceWithLease: boolean; setUpstream: boole
     error.value = null
     await api.push(activeRepoId.value, options.forceWithLease, options.setUpstream)
     showSyncModal.value = false
-    await refreshStatus()
+    await refreshStatus(true, 'push-complete')
   } catch (err: any) {
     error.value = err.message || 'Failed to push'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handlePull(options: { rebase: boolean; setUpstream: boolean }) {
+  if (!activeRepoId.value) return
+  try {
+    loading.value = true
+    error.value = null
+    await api.pull(activeRepoId.value, options.rebase, options.setUpstream)
+    showSyncModal.value = false
+    await refreshStatus(true, 'pull-complete')
+  } catch (err: any) {
+    error.value = err.message || 'Failed to pull'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleFetch() {
+  if (!activeRepoId.value) return
+  try {
+    loading.value = true
+    error.value = null
+    await api.fetch(activeRepoId.value)
+    await refreshStatus(true, 'fetch-complete')
+  } catch (err: any) {
+    error.value = err.message || 'Failed to fetch'
   } finally {
     loading.value = false
   }
@@ -613,17 +642,17 @@ async function handleBranchCreated(branch: string) {
 
       <!-- Action Icons Area -->
       <div class="flex items-center gap-1.5 shrink-0">
-        <!-- Sync / Push Modal Trigger (Always visible) -->
+        <!-- Sync / Remote Modal Trigger (Always visible) -->
         <button
           v-if="status"
           type="button"
           :class="[
             'p-2 rounded-xl border transition-all active:scale-95 shrink-0',
-            status.ahead > 0
-              ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
+            (status.ahead > 0 || status.behind > 0)
+              ? (status.behind > 0 ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-sky-500/10 border-sky-500/30 text-sky-400')
               : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-zinc-200',
           ]"
-          title="Push to remote"
+          title="Remote Sync (Push / Pull)"
           @click="handleOpenSync"
         >
           <UploadCloud class="w-4 h-4 shrink-0" />
@@ -990,6 +1019,8 @@ async function handleBranchCreated(branch: string) {
       :ahead="status.ahead"
       :behind="status.behind"
       @push="handlePush"
+      @pull="handlePull"
+      @fetch="handleFetch"
       @close="showSyncModal = false"
     />
 
