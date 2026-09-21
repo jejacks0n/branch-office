@@ -27,11 +27,11 @@ const emit = defineEmits<{
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+      class="viewport-fixed modal-overlay z-[60] bg-black/75 backdrop-blur-sm animate-fade-in"
       @click.self="emit('cancel')"
     >
       <div
-        class="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-5 space-y-4 transform transition-all"
+        class="modal-panel max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-5 space-y-4 overflow-y-auto transform transition-all"
       >
         <div class="flex items-start gap-3">
           <div

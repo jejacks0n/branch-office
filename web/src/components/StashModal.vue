@@ -192,11 +192,11 @@ async function toggleDiff(stash: StashItem) {
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+      class="viewport-fixed modal-overlay z-50 bg-black/75 backdrop-blur-sm animate-fade-in"
       @click.self="emit('close')"
     >
       <div
-        class="w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+        class="modal-panel max-w-xl bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
       >
         <!-- Header -->
         <div class="px-5 py-4 border-b border-zinc-800/80 flex items-center justify-between shrink-0">

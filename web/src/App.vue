@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import type { Repo, RepoStatus, FileStatus, FileDiff, PRStatus, Worktree } from './types'
+import type { Repo, RepoStatus, FileStatus, FileDiff, PRStatus, Worktree, CommitItem } from './types'
 import { api } from './api'
 import RepoSelector from './components/RepoSelector.vue'
 import FileList from './components/FileList.vue'
@@ -12,6 +12,7 @@ import WorktreeModal from './components/WorktreeModal.vue'
 import BranchModal from './components/BranchModal.vue'
 import StashModal from './components/StashModal.vue'
 import TagModal from './components/TagModal.vue'
+import LogModal from './components/LogModal.vue'
 import {
   FolderGit2,
   GitBranch,
@@ -23,6 +24,7 @@ import {
   ChevronDown,
   Archive,
   Tag,
+  History,
   MoreHorizontal,
 } from 'lucide-vue-next'
 
@@ -37,6 +39,10 @@ const activeDiffStaged = ref(false)
 const activeDiffUntracked = ref(false)
 const activeDiffFile = ref<string>('')
 
+const commitDiffFiles = ref<FileDiff[]>([])
+const commitDiffIndex = ref<number>(0)
+const isCommitDiff = ref<boolean>(false)
+
 const showRepoSelector = ref(false)
 const showSyncModal = ref(false)
 const showPrModal = ref(false)
@@ -44,6 +50,7 @@ const showWorktreeModal = ref(false)
 const showBranchModal = ref(false)
 const showStashModal = ref(false)
 const showTagModal = ref(false)
+const showLogModal = ref(false)
 const showActionsDropdown = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 
@@ -97,7 +104,10 @@ watch(activeRepoId, () => {
   showWorktreeModal.value = false
   showSyncModal.value = false
   showPrModal.value = false
+  showLogModal.value = false
   activeDiff.value = null
+  isCommitDiff.value = false
+  commitDiffFiles.value = []
 })
 
 watch(showWorktreeModal, (open) => {
@@ -108,9 +118,9 @@ watch(showWorktreeModal, (open) => {
 
 // Auto-collapse commit drawer whenever any modal, dropdown, or diff viewer opens
 watch(
-  [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, showTagModal, showActionsDropdown, () => !!activeDiff.value],
-  ([repo, sync, pr, wt, branch, stash, tag, dropdown, diff]) => {
-    if (repo || sync || pr || wt || branch || stash || tag || dropdown || diff) {
+  [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, showTagModal, showLogModal, showActionsDropdown, () => !!activeDiff.value],
+  ([repo, sync, pr, wt, branch, stash, tag, log, dropdown, diff]) => {
+    if (repo || sync || pr || wt || branch || stash || tag || log || dropdown || diff) {
       isCommitDrawerOpen.value = false
     }
   }
@@ -300,6 +310,20 @@ async function loadDiffForFile(filePath: string, staged: boolean, untracked: boo
 function handleCloseDiff() {
   activeDiff.value = null
   activeDiffFile.value = ''
+  if (isCommitDiff.value) {
+    isCommitDiff.value = false
+    commitDiffFiles.value = []
+  }
+}
+
+function handleViewCommitDiff(payload: { diffs: FileDiff[]; fileIndex: number; commit: CommitItem }) {
+  commitDiffFiles.value = payload.diffs
+  commitDiffIndex.value = payload.fileIndex
+  isCommitDiff.value = true
+  activeDiff.value = payload.diffs[payload.fileIndex] || null
+  activeDiffStaged.value = false
+  activeDiffUntracked.value = false
+  activeDiffFile.value = activeDiff.value?.newPath || activeDiff.value?.oldPath || ''
 }
 
 interface DiffNavFile {
@@ -331,6 +355,14 @@ const hasNextDiff = computed(() => {
 })
 
 async function handlePrevDiff() {
+  if (isCommitDiff.value) {
+    if (commitDiffIndex.value > 0) {
+      commitDiffIndex.value--
+      activeDiff.value = commitDiffFiles.value[commitDiffIndex.value] || null
+      activeDiffFile.value = activeDiff.value?.newPath || activeDiff.value?.oldPath || ''
+    }
+    return
+  }
   if (!hasPrevDiff.value) return
   const prev = diffNavFiles.value[currentDiffIndex.value - 1]
   if (prev) {
@@ -339,6 +371,14 @@ async function handlePrevDiff() {
 }
 
 async function handleNextDiff() {
+  if (isCommitDiff.value) {
+    if (commitDiffIndex.value < commitDiffFiles.value.length - 1) {
+      commitDiffIndex.value++
+      activeDiff.value = commitDiffFiles.value[commitDiffIndex.value] || null
+      activeDiffFile.value = activeDiff.value?.newPath || activeDiff.value?.oldPath || ''
+    }
+    return
+  }
   if (!hasNextDiff.value) return
   const next =
     currentDiffIndex.value >= 0
@@ -722,6 +762,17 @@ async function handleBranchCreated(branch: string) {
             <span v-if="(status.tagCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.tagCount }}</span>
           </button>
 
+          <!-- History Trigger -->
+          <button
+            v-if="status"
+            type="button"
+            class="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10 transition-all active:scale-95 shrink-0"
+            title="Commit History"
+            @click="showLogModal = true"
+          >
+            <History class="w-4 h-4 shrink-0" />
+          </button>
+
           <!-- Refresh Button -->
           <button
             type="button"
@@ -825,6 +876,19 @@ async function handleBranchCreated(branch: string) {
                   >
                     {{ status.tagCount }}
                   </span>
+                </button>
+
+                <!-- Commit History -->
+                <button
+                  v-if="status"
+                  type="button"
+                  class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors"
+                  @click="showActionsDropdown = false; showLogModal = true"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <History class="w-4 h-4 text-purple-400 shrink-0" />
+                    <span class="truncate">Commit History</span>
+                  </div>
                 </button>
               </div>
 
@@ -1038,16 +1102,27 @@ async function handleBranchCreated(branch: string) {
       :file-diff="activeDiff"
       :staged="activeDiffStaged"
       :untracked="activeDiffUntracked"
-      :has-prev="hasPrevDiff"
-      :has-next="hasNextDiff"
-      :file-index="currentDiffIndex"
-      :total-files="diffNavFiles.length"
+      :read-only="isCommitDiff"
+      :has-prev="isCommitDiff ? commitDiffIndex > 0 : hasPrevDiff"
+      :has-next="isCommitDiff ? commitDiffIndex < commitDiffFiles.length - 1 : hasNextDiff"
+      :file-index="isCommitDiff ? commitDiffIndex : currentDiffIndex"
+      :total-files="isCommitDiff ? commitDiffFiles.length : diffNavFiles.length"
       @prev="handlePrevDiff"
       @next="handleNextDiff"
       @stage-hunk="handleStageHunk"
       @unstage-hunk="handleUnstageHunk"
       @discard-hunk="handleDiscardHunk"
       @close="handleCloseDiff"
+    />
+
+    <LogModal
+      v-if="activeRepo"
+      :show="showLogModal"
+      :repo-id="activeRepo.id"
+      :repo-name="activeRepo.name"
+      :current-branch="status?.branch || ''"
+      @view-commit-diff="handleViewCommitDiff"
+      @close="showLogModal = false"
     />
 
     <WorktreeModal

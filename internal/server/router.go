@@ -55,6 +55,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/repos/{id}/pull", s.withRepo(s.handlePull))
 	mux.HandleFunc("POST /api/repos/{id}/fetch", s.withRepo(s.handleFetch))
 
+	// Git Commit History endpoints
+	mux.HandleFunc("GET /api/repos/{id}/commits", s.withRepo(s.handleListCommits))
+	mux.HandleFunc("GET /api/repos/{id}/commits/{hash}", s.withRepo(s.handleGetCommit))
+	mux.HandleFunc("GET /api/repos/{id}/commits/{hash}/diff", s.withRepo(s.handleGetCommitDiff))
+
 	// GitHub PR endpoints
 	mux.HandleFunc("GET /api/repos/{id}/pr", s.withRepo(s.handlePRStatus))
 	mux.HandleFunc("POST /api/repos/{id}/pr", s.withRepo(s.handlePRCreate))
@@ -837,5 +842,68 @@ func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request, repo *c
 	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
+func (s *Server) handleListCommits(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	limit := 30
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	skip := 0
+	if sk := r.URL.Query().Get("skip"); sk != "" {
+		if parsed, err := strconv.Atoi(sk); err == nil && parsed >= 0 {
+			skip = parsed
+		}
+	}
 
+	opts := git.LogOptions{
+		Limit:  limit,
+		Skip:   skip,
+		Ref:    r.URL.Query().Get("ref"),
+		Path:   r.URL.Query().Get("path"),
+		Search: r.URL.Query().Get("search"),
+	}
 
+	commits, err := client.GetCommits(opts)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, commits)
+}
+
+func (s *Server) handleGetCommit(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	hash := r.PathValue("hash")
+	if hash == "" {
+		writeError(w, http.StatusBadRequest, "commit hash required")
+		return
+	}
+
+	commit, diffs, err := client.GetCommit(hash)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"commit": commit,
+		"diffs":  diffs,
+	})
+}
+
+func (s *Server) handleGetCommitDiff(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	hash := r.PathValue("hash")
+	if hash == "" {
+		writeError(w, http.StatusBadRequest, "commit hash required")
+		return
+	}
+
+	filePath := r.URL.Query().Get("file")
+	diffs, err := client.GetCommitDiff(hash, filePath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, diffs)
+}

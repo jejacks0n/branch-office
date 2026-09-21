@@ -679,6 +679,58 @@ func TestRouterEndpoints(t *testing.T) {
 			t.Fatalf("expected remote-file.txt to exist after pull: %v", err)
 		}
 	})
+
+	t.Run("Git_Commit_History_Endpoints", func(t *testing.T) {
+		// Test GET /api/repos/{id}/commits
+		req := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/commits?limit=10", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 from list commits, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var commits []git.CommitItem
+		if err := json.NewDecoder(rec.Body).Decode(&commits); err != nil {
+			t.Fatalf("failed to decode commits: %v", err)
+		}
+		if len(commits) == 0 {
+			t.Fatalf("expected at least 1 commit, got 0")
+		}
+
+		targetCommit := commits[0]
+
+		// Test GET /api/repos/{id}/commits/{hash}
+		reqSingle := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/commits/"+targetCommit.Hash, nil)
+		recSingle := httptest.NewRecorder()
+		handler.ServeHTTP(recSingle, reqSingle)
+		if recSingle.Code != http.StatusOK {
+			t.Fatalf("expected 200 from get commit, got %d: %s", recSingle.Code, recSingle.Body.String())
+		}
+
+		var commitDetails struct {
+			Commit git.CommitItem `json:"commit"`
+			Diffs  []git.FileDiff `json:"diffs"`
+		}
+		if err := json.NewDecoder(recSingle.Body).Decode(&commitDetails); err != nil {
+			t.Fatalf("failed to decode commit details: %v", err)
+		}
+		if commitDetails.Commit.Hash != targetCommit.Hash {
+			t.Errorf("expected hash %s, got %s", targetCommit.Hash, commitDetails.Commit.Hash)
+		}
+
+		// Test GET /api/repos/{id}/commits/{hash}/diff
+		reqDiff := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/commits/"+targetCommit.Hash+"/diff", nil)
+		recDiff := httptest.NewRecorder()
+		handler.ServeHTTP(recDiff, reqDiff)
+		if recDiff.Code != http.StatusOK {
+			t.Fatalf("expected 200 from get commit diff, got %d: %s", recDiff.Code, recDiff.Body.String())
+		}
+
+		var diffs []git.FileDiff
+		if err := json.NewDecoder(recDiff.Body).Decode(&diffs); err != nil {
+			t.Fatalf("failed to decode commit diffs: %v", err)
+		}
+	})
 }
 
 

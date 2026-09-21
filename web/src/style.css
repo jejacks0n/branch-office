@@ -68,3 +68,34 @@ body {
 .pb-safe-lg {
   padding-bottom: max(var(--safe-bottom), 16px);
 }
+
+/* Full-viewport overlays.
+   Height is dvh, not vh. `vh` is the *large* viewport: it assumes mobile
+   Safari's address bar and toolbar are retracted, so a vh-sized overlay
+   extends behind that chrome and the bottom of a centred panel becomes
+   unreachable. `dvh` tracks what is actually visible. vh is kept first as a
+   fallback for browsers without dvh (pre iOS 15.4). */
+.viewport-fixed {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Centred modal backdrop. Padding carries the safe-area insets so panels also
+   clear the Dynamic Island and home indicator when installed to the home screen. */
+.modal-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--safe-top) + 12px) 16px calc(var(--safe-bottom) + 12px);
+}
+
+/* Panel can never exceed the overlay's content box, so it always fits the
+   visible viewport whatever the browser chrome is doing. Each modal keeps its
+   own overflow behaviour: a scroll region inside, or scrolling the panel. */
+.modal-panel {
+  width: 100%;
+  max-height: 100%;
+}

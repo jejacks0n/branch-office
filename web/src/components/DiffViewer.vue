@@ -18,6 +18,7 @@ const props = defineProps<{
   fileDiff: FileDiff | null
   staged: boolean
   untracked?: boolean
+  readOnly?: boolean
   hasPrev?: boolean
   hasNext?: boolean
   fileIndex?: number
@@ -119,7 +120,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div
       v-if="show && fileDiff"
-      class="fixed inset-0 z-50 flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden animate-fade-in"
+      class="viewport-fixed z-50 flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden animate-fade-in"
     >
     <!-- Sticky Top Header -->
     <header
@@ -135,10 +136,16 @@ onUnmounted(() => {
             {{ filePathInfo.file }}
           </h2>
 
-          <!-- Bottom Row: [Staged] badge, directory path, change status, and stats -->
+          <!-- Bottom Row: [Commit/Staged] badge, directory path, change status, and stats -->
           <div class="flex items-center gap-2 text-xs font-mono mt-0.5 flex-wrap">
             <span
-              v-if="staged"
+              v-if="readOnly"
+              class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60 shrink-0"
+            >
+              Commit
+            </span>
+            <span
+              v-else-if="staged"
               class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0"
             >
               Staged
@@ -264,7 +271,7 @@ onUnmounted(() => {
           </button>
 
           <!-- Per-Hunk Actions -->
-          <div class="flex items-center gap-1.5 shrink-0">
+          <div v-if="!readOnly" class="flex items-center gap-1.5 shrink-0">
             <!-- If unstaged, show Stage and Discard -->
             <template v-if="!staged && !untracked">
               <button

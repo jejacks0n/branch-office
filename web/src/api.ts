@@ -1,4 +1,4 @@
-import type { Repo, RepoStatus, FileDiff, PRStatus, PRDetails, Worktree, Branch, StashItem, TagItem } from './types'
+import type { Repo, RepoStatus, FileDiff, PRStatus, PRDetails, Worktree, Branch, StashItem, TagItem, CommitItem, CommitDetails } from './types'
 
 const BASE_URL = '/api'
 
@@ -268,4 +268,36 @@ export const api = {
       }
     )
   },
+
+  // Commit History
+  async getCommits(
+    repoId: string,
+    options?: { limit?: number; skip?: number; ref?: string; path?: string; search?: string }
+  ): Promise<CommitItem[]> {
+    const params = new URLSearchParams()
+    if (options?.limit) params.set('limit', String(options.limit))
+    if (options?.skip) params.set('skip', String(options.skip))
+    if (options?.ref) params.set('ref', options.ref)
+    if (options?.path) params.set('path', options.path)
+    if (options?.search) params.set('search', options.search)
+
+    const query = params.toString()
+    const res = await request<CommitItem[]>(`/repos/${repoId}/commits${query ? `?${query}` : ''}`)
+    return Array.isArray(res) ? res : []
+  },
+
+  async getCommit(repoId: string, hash: string): Promise<CommitDetails> {
+    return request<CommitDetails>(`/repos/${repoId}/commits/${encodeURIComponent(hash)}`)
+  },
+
+  async getCommitDiff(repoId: string, hash: string, file?: string): Promise<FileDiff[]> {
+    const params = new URLSearchParams()
+    if (file) params.set('file', file)
+    const query = params.toString()
+    const res = await request<FileDiff[]>(
+      `/repos/${repoId}/commits/${encodeURIComponent(hash)}/diff${query ? `?${query}` : ''}`
+    )
+    return Array.isArray(res) ? res : []
+  },
 }
+

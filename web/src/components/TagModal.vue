@@ -191,11 +191,11 @@ async function confirmDeleteTag() {
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+      class="viewport-fixed modal-overlay z-50 bg-black/80 backdrop-blur-sm animate-fade-in"
       @click.self="emit('close')"
     >
       <div
-        class="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden transform transition-all"
+        class="modal-panel max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden transform transition-all"
       >
         <!-- Modal Header -->
         <div class="px-5 py-4 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-900/60">
@@ -452,10 +452,10 @@ async function confirmDeleteTag() {
     <!-- Custom Delete Tag Confirmation Dialog -->
     <div
       v-if="tagToDelete"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+      class="viewport-fixed modal-overlay z-[60] bg-black/80 backdrop-blur-sm animate-fade-in"
       @click.self="tagToDelete = null"
     >
-      <div class="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-5 space-y-4">
+      <div class="modal-panel max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-5 space-y-4 overflow-y-auto">
         <div class="flex items-start gap-3">
           <div class="p-2.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
             <Trash2 class="w-5 h-5" />

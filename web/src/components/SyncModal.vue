@@ -64,11 +64,11 @@ function handleFetch() {
   <Teleport to="body">
     <div
       v-if="show"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+      class="viewport-fixed modal-overlay z-50 bg-black/75 backdrop-blur-sm animate-fade-in"
       @click.self="emit('close')"
     >
       <div
-        class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-5 space-y-5"
+        class="modal-panel max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl p-5 space-y-5 overflow-y-auto"
       >
         <!-- Header -->
         <div class="flex items-center justify-between pb-3 border-b border-zinc-800">

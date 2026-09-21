@@ -123,4 +123,20 @@ export interface TagItem {
   message: string
 }
 
+export interface CommitItem {
+  hash: string
+  shortHash: string
+  author: string
+  email: string
+  timestamp: number
+  date: string
+  relativeDate: string
+  subject: string
+  body: string
+  refs: string[]
+}
 
+export interface CommitDetails {
+  commit: CommitItem
+  diffs: FileDiff[]
+}
