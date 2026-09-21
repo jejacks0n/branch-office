@@ -592,7 +592,7 @@ p { margin: 0; }
     </a>
     <div class="nav-actions">
       <a class="btn btn-ghost btn-sm nav-hide" href="#how">How it works</a>
-      <a class="btn btn-primary btn-sm" href="#install">Build from source</a>
+      <a class="btn btn-primary btn-sm" href="#install">Install</a>
     </div>
   </div>
 </nav>
@@ -613,7 +613,7 @@ p { margin: 0; }
           and push from your phone.
         </p>
         <div class="hero-cta enter" style="--d:380ms">
-          <a class="btn btn-primary" href="#install">Build from source</a>
+          <a class="btn btn-primary" href="#install">Install</a>
           <a class="btn btn-ghost" href="https://github.com/jejacks0n/branch-office">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2.2c-3.34.73-4.04-1.42-4.04-1.42-.55-1.4-1.34-1.77-1.34-1.77-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.96 0-1.32.47-2.4 1.24-3.24-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.24a11.4 11.4 0 0 1 6 0c2.29-1.56 3.3-1.24 3.3-1.24.66 1.66.24 2.88.12 3.18.77.84 1.24 1.92 1.24 3.24 0 4.63-2.81 5.65-5.49 5.95.43.37.82 1.1.82 2.22v3.3c0 .32.21.7.82.58A12 12 0 0 0 12 .5Z"/></svg>
             GitHub
@@ -766,29 +766,31 @@ p { margin: 0; }
   <section class="install" id="install">
     <div class="wrap">
       <div>
-        <h2 class="section-title reveal">Three commands.</h2>
+        <h2 class="section-title reveal">Install in one command.</h2>
         <p class="install-note reveal">
-          Go 1.22+ and Node 18+ to build it. Then git on your PATH, plus gh if you want pull requests
+          Homebrew on macOS or Linux. It needs git on your PATH, plus gh if you want pull requests
           and Copilot commit messages.
         </p>
       </div>
       <div class="reveal">
         <div class="terminal">
-          <div class="terminal-head">build and run</div>
-          <pre><code><span class="pfx">$</span> git clone git@github.com:jejacks0n/branch-office.git
-<span class="pfx">$</span> cd branch-office &amp;&amp; make build
-<span class="pfx">$</span> ./bin/broffice</code></pre>
+          <div class="terminal-head">install with homebrew</div>
+          <pre><code><span class="pfx">$</span> brew install jejacks0n/tap/broffice
+<span class="cmt"># or in two steps: brew tap jejacks0n/tap &amp;&amp; brew install broffice</span>
+<span class="pfx">$</span> broffice</code></pre>
         </div>
         <div class="terminal">
-          <div class="terminal-head">reach it from your phone</div>
+          <div class="terminal-head">reach it from anywhere, via <a href="https://tailscale.com">tailscale</a></div>
           <pre><code><span class="pfx">$</span> tailscale serve --bg 8080</code></pre>
         </div>
         <div class="terminal">
-          <div class="terminal-head">skip the biometric prompt</div>
+          <div class="terminal-head">skip the biometric prompts</div>
           <pre><code><span class="cmt"># a dedicated key, used only by Branch Office</span>
 <span class="pfx">$</span> ssh-keygen -t ed25519 -f ~/.ssh/broffice_ed25519 -N ""
 <span class="pfx">$</span> gh ssh-key add ~/.ssh/broffice_ed25519.pub
-<span class="pfx">$</span> ./bin/broffice -ssh-key ~/.ssh/broffice_ed25519 -no-sign</code></pre>
+<span class="pfx">$</span> gh ssh-key add ~/.ssh/broffice_ed25519.pub --type signing
+<span class="pfx">$</span> broffice -ssh-key ~/.ssh/broffice_ed25519
+<span class="cmt"># and use -no-sign if you don't want to sign commits from broffice</span></code></pre>
         </div>
       </div>
     </div>
