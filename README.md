@@ -1,11 +1,26 @@
-Branch Office
-=============
+<p align="center">
+  <img src="broffice.svg" width="96" height="96" alt="Branch Office Logo" />
+</p>
 
-A hyper-lightweight, mobile-friendly remote Git control center that runs locally on your host machine. Remote control
-your git repos too.
+<h1 align="center">Branch Office</h1>
+
+<p align="center">
+  <strong>A hyper-lightweight, mobile-friendly remote Git control center running locally on your host machine.</strong><br>
+  <em>Your agents write it. You still commit it.</em>
+</p>
+
+<p align="center">
+  <a href="#screenshots">Screenshots</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#features">Features</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#remote-ssh--biometric-agent-setup">SSH & Biometrics</a>
+</p>
+
+---
 
 Designed to be securely exposed over private networks like Tailscale, Branch Office lets you review diffs, stage files
-or individual hunks, safely discard changes, draft commits, push (with optional `--force-with-lease` safeguards,) and
+or individual hunks, safely discard changes, draft commits, push (with optional `--force-with-lease` safeguards), and
 manage GitHub pull requests directly from your phone.
 
 This project was born from a personal need / desire. I was doing a lot of programming from my phone with agents, but as
@@ -14,9 +29,17 @@ a git purist, I don't allow my agents to commit on my behalf and use [Secretive]
 stage hunks/files, review changes, write commit messages from my phone, and do all of the other lifecycle things like
 pushing and opening PRs from my phone as well.
 
-Doing that via SSH is a pain, because I have to disable/circumvent biometric authentication for my ssh key accross the
+Doing that via SSH is a pain, because I have to disable/circumvent biometric authentication for my ssh key across the
 board, or I had to create an app that would allow me to specify a separate SSH key. Because of this Branch Office has
 SSH key functionality built-in, so if you value signing your commits, it's great at handling that too.
+
+---
+
+## Screenshots
+
+| Status & Staging | Diff & Hunk Staging | Mobile Commit Drawer | Push to Remote |
+| :---: | :---: | :---: | :---: |
+| <img src="screenshots/shot-status.png" width="220" alt="Status & Staging" /> | <img src="screenshots/shot-diff.png" width="220" alt="Diff & Hunks" /> | <img src="screenshots/shot-commit.png" width="220" alt="Commit Drawer" /> | <img src="screenshots/shot-push.png" width="220" alt="Push to Remote" /> |
 
 ---
 
@@ -25,6 +48,8 @@ SSH key functionality built-in, so if you value signing your commits, it's great
 - **Single Binary**: The entire mobile Vue 3 SPA is embedded into a compiled Go binary (`~9MB`). No external node runtime, python, or server dependencies needed in production.
 - **Multi-Repository Workspace**: Seamlessly switch between multiple local Git projects from the mobile top bar. Register new directory paths or remove projects directly from the UI.
 - **First-Class Git Worktrees**: Switch between linked worktrees, create new worktrees (with automatic branch checkout), and remove worktrees directly from mobile with dedicated live change detection.
+- **Git Stash Interface**: Save uncommitted changes (with untracked files by default), inspect stash diffs, apply or pop stashes, and switch branches cleanly.
+- **Git Tags & Release Management**: Create lightweight or annotated tags with version messages, and push tags directly to remote (`origin`) in one tap.
 - **Full File & Hunk-Level Staging**: Stage whole files or inspect color-coded unified diffs and stage/unstage individual diff hunks with a tap.
 - **Safe Discard Workflow**: Revert changes in modified files, untracked files, or specific diff hunks with deliberate confirmation safeguards.
 - **Mobile-Optimized Commits**: Fixed bottom drawer with auto-sizing commit message input and amend toggles within thumb reach.
