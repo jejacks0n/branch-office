@@ -14,8 +14,7 @@
   <a href="#screenshots">Screenshots</a> •
   <a href="#installation">Installation</a> •
   <a href="#features">Features</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#remote-ssh--biometric-agent-setup">SSH & Biometrics</a>
+  <a href="#ssh--biometrics">SSH & Biometrics</a>
 </p>
 
 ---
@@ -113,7 +112,7 @@ tailscale serve --bg 8080
 
 ## SSH & Biometrics
 
-f you use **SecretAgent**, **1Password SSH Agent**, or hardware security keys on your host machine, Git operations
+If you use **SecretAgent**, **1Password SSH Agent**, or hardware security keys on your host machine, Git operations
 normally require a physical fingerprint or password prompt. When accessing Branch Office remotely, you cannot provide
 biometric authorization, which causes pushes or commits to block or fail.
 
@@ -130,20 +129,22 @@ ssh-keygen -t ed25519 -f ~/.ssh/broffice_ed25519 -C "branch-office-remote" -N ""
 
 ### Add Key to GitHub
 
+Register the key twice: once to authenticate pushes, and once as a signing key so GitHub can verify the commits
+Branch Office signs with it.
+
 ```bash
 gh ssh-key add ~/.ssh/broffice_ed25519.pub --title "Branch Office Host"
+gh ssh-key add ~/.ssh/broffice_ed25519.pub --title "Branch Office Host (signing)" --type signing
 ```
 
-### Start Branch Office with Key & Signing Overrides
-
-Launch Branch Office with the `-ssh-key` and `-no-sign` flags:
+### Start Branch Office with the Key
 
 ```bash
-./bin/broffice -ssh-key ~/.ssh/broffice_ed25519 -no-sign
+./bin/broffice -ssh-key ~/.ssh/broffice_ed25519
 ```
 
-* **`-ssh-key <path>`**: Injects `GIT_SSH_COMMAND="ssh -i <path> -o IdentitiesOnly=yes"` and clears `SSH_AUTH_SOCK` for Git commands executed by Branch Office, completely bypassing SecretAgent.
-* **`-no-sign`**: Passes `-c commit.gpgSign=false` to `git commit`, preventing SecretAgent or GPG from prompting for Touch ID when committing changes from your mobile device.
+* **`-ssh-key <path>`**: Injects `GIT_SSH_COMMAND="ssh -i <path> -o IdentitiesOnly=yes"` and clears `SSH_AUTH_SOCK` for Git commands executed by Branch Office, completely bypassing SecretAgent. If your Git config signs commits, Branch Office signs them with this same key, so nothing prompts for a fingerprint and GitHub can verify them.
+* **`-no-sign`** (optional): Disables commit and tag signing entirely, so commits made from Branch Office are unsigned. It is not needed to avoid biometric prompts when `-ssh-key` is set. Use it if you would rather not sign from your phone, or if you did not register the key as a signing key. Without `-ssh-key`, it is what stops SecretAgent or GPG from prompting for Touch ID on commit.
 
 ### Optional Environment Variables & Persistence
 
@@ -151,7 +152,7 @@ You can also set these options via environment variables:
 
 ```bash
 export BROFFICE_SSH_KEY="~/.ssh/broffice_ed25519"
-export BROFFICE_NO_SIGN="true"
+# export BROFFICE_NO_SIGN="true"   # only to disable signing
 ./bin/broffice
 ```
 
