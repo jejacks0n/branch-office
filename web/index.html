@@ -16,7 +16,12 @@
     <meta name="application-name" content="Branch Office" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Deliberately NOT black-translucent. In standalone mode iOS anchors the web
+         view at the physical top but sizes it to screen-minus-status-bar, so a
+         position:fixed bottom bar lands short by the top inset and leaves a gap.
+         viewport-fit=cover already gives edge to edge, and theme-color paints
+         the status bar, so the translucent style buys nothing here. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">

@@ -114,11 +114,14 @@ function toggleOpen() {
 
 <template>
   <div
-    class="fixed inset-x-0 bottom-0 z-40 bg-zinc-900/95 backdrop-blur-md border-t border-zinc-800 shadow-2xl transition-all duration-300 pb-safe"
+    class="fixed inset-x-0 bottom-0 z-40 bg-zinc-900/95 backdrop-blur-md border-t border-zinc-800 shadow-2xl transition-all duration-300"
   >
     <!-- Collapsed summary bar (always visible at bottom) -->
     <div
-      class="px-4 py-3 flex items-center justify-between cursor-pointer active:bg-zinc-800/40 select-none"
+      :class="[
+        'px-4 pt-3 flex items-center justify-between cursor-pointer active:bg-zinc-800/40 select-none',
+        isOpen ? 'pb-3' : 'pb-safe',
+      ]"
       @click="toggleOpen"
     >
       <div class="flex items-center gap-2.5">
@@ -152,7 +155,7 @@ function toggleOpen() {
     </div>
 
     <!-- Expanded Drawer Content -->
-    <div v-show="isOpen" class="px-4 pb-4 space-y-2.5 pt-1.5 border-t border-zinc-800/40">
+    <div v-show="isOpen" class="px-4 pb-safe-lg space-y-2.5 pt-1.5 border-t border-zinc-800/40">
       <!-- Toolbar row above message input -->
       <div class="flex items-center justify-between">
         <span class="text-xs text-zinc-400 font-medium">Commit Message</span>

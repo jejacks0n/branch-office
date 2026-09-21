@@ -44,11 +44,27 @@ body {
   background: #3f3f46;
 }
 
-/* Safe area padding utilities */
-.pb-safe {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+/* Safe area insets.
+   Held in custom properties so they can be overridden when testing the
+   installed/standalone layout in a desktop browser, where env() is always 0. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .pt-safe {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
+  padding-top: calc(var(--safe-top) + 14px);
+}
+
+/* Reserve the home indicator strip, or a small gutter when there is none.
+   Not additive: on an installed iOS app the inset alone is the whole gutter.
+   Apply this to the last element in a bottom-anchored container, not the
+   container itself, so the inset stays part of that element's hit area
+   instead of becoming a dead band under it. */
+.pb-safe {
+  padding-bottom: max(var(--safe-bottom), 12px);
+}
+
+.pb-safe-lg {
+  padding-bottom: max(var(--safe-bottom), 16px);
 }
