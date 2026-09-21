@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import type { Repo, RepoStatus, FileStatus, FileDiff, PRStatus, Worktree, CommitItem } from './types'
 import { api } from './api'
+import { getToken } from './token'
 import RepoSelector from './components/RepoSelector.vue'
 import FileList from './components/FileList.vue'
 import DiffViewer from './components/DiffViewer.vue'
@@ -142,7 +143,10 @@ function connectSSE() {
   currentSSERepoId = activeRepoId.value
 
   try {
-    eventSource = new EventSource(`/api/repos/${activeRepoId.value}/events`)
+    // EventSource cannot set headers, so the token travels as a query param.
+    const token = getToken()
+    const eventsUrl = `/api/repos/${activeRepoId.value}/events${token ? `?token=${encodeURIComponent(token)}` : ''}`
+    eventSource = new EventSource(eventsUrl)
 
     eventSource.onopen = () => {
       console.log('[BranchOffice] SSE stream opened')

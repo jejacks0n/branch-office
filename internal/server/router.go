@@ -17,9 +17,10 @@ import (
 )
 
 type Server struct {
-	store    *config.Store
-	staticFS fs.FS
-	watchers *WatcherManager
+	store     *config.Store
+	staticFS  fs.FS
+	watchers  *WatcherManager
+	authToken string
 }
 
 func NewServer(store *config.Store, staticFS fs.FS) *Server {
@@ -134,7 +135,7 @@ func (s *Server) Routes() http.Handler {
 		})
 	}
 
-	return s.loggingMiddleware(s.corsMiddleware(mux))
+	return s.securityMiddleware(s.loggingMiddleware(mux))
 }
 
 func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
@@ -145,21 +146,6 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		if !isStreaming {
 			log.Printf("[HTTP] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
 		next.ServeHTTP(w, r)
 	})
 }

@@ -1,4 +1,5 @@
 import type { Repo, RepoStatus, FileDiff, PRStatus, PRDetails, Worktree, Branch, StashItem, TagItem, CommitItem, CommitDetails } from './types'
+import { getToken } from './token'
 
 const BASE_URL = '/api'
 
@@ -7,6 +8,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'X-Broffice-Token': getToken() ?? '',
       ...options?.headers,
     },
   })

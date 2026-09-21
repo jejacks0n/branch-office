@@ -7,6 +7,59 @@ import (
 	"testing"
 )
 
+func TestEnsureToken(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "broffice-config-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	cfgPath := filepath.Join(tempDir, "config.json")
+	store, err := NewStore(cfgPath)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+
+	if store.GetToken() != "" {
+		t.Fatal("expected empty token on fresh store")
+	}
+
+	token, err := store.EnsureToken()
+	if err != nil {
+		t.Fatalf("EnsureToken failed: %v", err)
+	}
+	if len(token) != 64 { // 32 bytes hex-encoded
+		t.Fatalf("expected 64-char token, got %d chars", len(token))
+	}
+
+	// Idempotent: second call returns the same token
+	again, err := store.EnsureToken()
+	if err != nil {
+		t.Fatalf("second EnsureToken failed: %v", err)
+	}
+	if again != token {
+		t.Fatalf("expected stable token, got %q then %q", token, again)
+	}
+
+	// Token persists across store reloads
+	reloaded, err := NewStore(cfgPath)
+	if err != nil {
+		t.Fatalf("failed to reload store: %v", err)
+	}
+	if reloaded.GetToken() != token {
+		t.Fatal("expected token to persist in config file")
+	}
+
+	// Config file stays owner-only since it now holds a secret
+	fi, err := os.Stat(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0600 {
+		t.Fatalf("expected config file mode 0600, got %o", fi.Mode().Perm())
+	}
+}
+
 func TestConfigStore(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "broffice-config-test-*")
 	if err != nil {

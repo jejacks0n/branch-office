@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +23,7 @@ type Repo struct {
 type Config struct {
 	SSHKey         string `json:"sshKey,omitempty"`
 	DisableSigning bool   `json:"disableSigning,omitempty"`
+	Token          string `json:"token,omitempty"`
 	Repositories   []Repo `json:"repositories"`
 }
 
@@ -106,7 +108,8 @@ func (s *Store) saveLocked() error {
 	}
 
 	tmpFile := s.configPath + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0644); err != nil {
+	// The config may hold the auth token, so it stays owner-only.
+	if err := os.WriteFile(tmpFile, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config temp file: %w", err)
 	}
 
@@ -163,6 +166,34 @@ func (s *Store) SetDisableSigning(disable bool) error {
 	defer s.mu.Unlock()
 	s.data.DisableSigning = disable
 	return s.saveLocked()
+}
+
+// EnsureToken returns the stored auth token, generating and persisting a new
+// 256-bit token on first use.
+func (s *Store) EnsureToken() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.data.Token != "" {
+		return s.data.Token, nil
+	}
+
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("failed to generate auth token: %w", err)
+	}
+	s.data.Token = hex.EncodeToString(buf)
+	if err := s.saveLocked(); err != nil {
+		return "", err
+	}
+	return s.data.Token, nil
+}
+
+// GetToken returns the stored auth token, if any.
+func (s *Store) GetToken() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.data.Token
 }
 
 func ValidateAndResolveGitPath(targetPath string) (string, error) {
