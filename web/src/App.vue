@@ -13,13 +13,14 @@ import BranchModal from './components/BranchModal.vue'
 import StashModal from './components/StashModal.vue'
 import TagModal from './components/TagModal.vue'
 import LogModal from './components/LogModal.vue'
+import ThinkingOrb from './components/ThinkingOrb.vue'
+import { usePullToRefresh } from './usePullToRefresh'
 import {
   FolderGit2,
   GitBranch,
   GitFork,
   UploadCloud,
   GitPullRequest,
-  RefreshCw,
   AlertCircle,
   ChevronDown,
   Archive,
@@ -53,6 +54,7 @@ const showTagModal = ref(false)
 const showLogModal = ref(false)
 const showActionsDropdown = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
+const mainRef = ref<HTMLElement | null>(null)
 
 const loading = ref(false)
 // Which remote operation is in flight. Separate from `loading`, which is shared by
@@ -248,6 +250,16 @@ async function handleRemoveRepo(repoId: string) {
     loading.value = false
   }
 }
+
+const {
+  pull,
+  dragging: pullDragging,
+  progress: pullProgress,
+} = usePullToRefresh(
+  mainRef,
+  () => refreshStatus(false, 'pull-to-refresh'),
+  () => !!activeRepo.value
+)
 
 async function refreshStatus(silent = false, reason = 'manual') {
   if (!activeRepoId.value) return
@@ -781,17 +793,6 @@ async function handleBranchCreated(branch: string) {
           >
             <History class="w-4 h-4 shrink-0" />
           </button>
-
-          <!-- Refresh Button -->
-          <button
-            type="button"
-            class="p-2 rounded-xl bg-zinc-800/80 border border-zinc-700/50 text-zinc-400 hover:text-zinc-200 transition-all active:scale-95 shrink-0"
-            :disabled="loading"
-            title="Refresh Git status"
-            @click="() => refreshStatus(false, 'refresh-button')"
-          >
-            <RefreshCw :class="['w-4 h-4 shrink-0', loading ? 'animate-spin text-emerald-400' : '']" />
-          </button>
         </div>
 
         <!-- Actions Dropdown on narrow screens (below 550px) -->
@@ -900,21 +901,6 @@ async function handleBranchCreated(branch: string) {
                   </div>
                 </button>
               </div>
-
-              <!-- Refresh Status -->
-              <div class="p-1">
-                <button
-                  type="button"
-                  class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 active:bg-zinc-800 transition-colors disabled:opacity-50"
-                  :disabled="loading"
-                  @click="showActionsDropdown = false; refreshStatus(false, 'dropdown-refresh')"
-                >
-                  <div class="flex items-center gap-2.5 min-w-0">
-                    <RefreshCw :class="['w-4 h-4 text-zinc-400 shrink-0', loading ? 'animate-spin text-emerald-400' : '']" />
-                    <span class="truncate">Refresh Status</span>
-                  </div>
-                </button>
-              </div>
             </div>
           </Transition>
         </div>
@@ -937,128 +923,158 @@ async function handleBranchCreated(branch: string) {
 
     <!-- Main Workspace Area -->
     <main
+      ref="mainRef"
       :class="[
-        'flex-1 overflow-y-auto overscroll-y-contain w-full p-4 sm:px-6 md:px-8 space-y-4 transition-[padding-bottom] duration-200',
+        'relative flex-1 overflow-y-auto overscroll-y-contain w-full p-4 sm:px-6 md:px-8 transition-[padding-bottom] duration-200',
         isCommitDrawerOpen ? 'pb-96 sm:pb-[26rem]' : 'pb-36'
       ]"
     >
-      <!-- No active repo -->
+      <!-- Pull-to-refresh, Mail style: the whole content column follows the finger and the
+           spinner is revealed in the gap above it. On release past the threshold the column
+           holds there until the refresh lands, then springs back with the new status in place.
+           Spinner sits behind the column (earlier in source) and is centred in the gap, which is
+           <main>'s 16px top padding plus the pull distance. -->
       <div
-        v-if="!activeRepo"
-        class="py-20 text-center space-y-4 bg-zinc-900/40 rounded-3xl border border-zinc-800/60 p-6"
+        class="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
+        aria-hidden="true"
+        :style="{
+          transform: `translateY(${(16 + pull) / 2 - 18}px)`,
+          opacity: pullProgress,
+          transition: pullDragging ? 'none' : 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 260ms',
+        }"
       >
-        <FolderGit2 class="w-12 h-12 mx-auto text-zinc-600" />
-        <div class="space-y-1">
-          <h2 class="text-base font-semibold text-zinc-200">No Repository Selected</h2>
-          <p class="text-xs text-zinc-500">Pick a registered repository or add a path on your machine.</p>
+        <div class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700/70 shadow-lg flex items-center justify-center">
+          <ThinkingOrb state="working" :size="20" color="#34d399" :paused="pull === 0" />
         </div>
-        <button
-          type="button"
-          class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-md transition-all active:scale-95"
-          @click="showRepoSelector = true"
-        >
-          Manage Repositories
-        </button>
       </div>
 
-      <!-- Active Repo Git Control View -->
-      <template v-else-if="status">
-        <!-- Branch Header Status Pill -->
-        <div class="p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex flex-col gap-2">
-          <!-- Line 1: Interactive Branch Switcher + Ahead/Behind -->
-          <div class="flex items-center justify-between gap-2 min-w-0">
-            <button
-              type="button"
-              class="flex items-center gap-2.5 min-w-0 flex-1 group text-left cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
-              title="Switch or create branches"
-              @click="showBranchModal = true"
-            >
-              <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors shrink-0">
-                <GitBranch class="w-4 h-4" />
-              </div>
-              <div class="min-w-0 flex items-center gap-1.5 flex-1">
-                <span class="text-xs font-semibold text-zinc-200 group-hover:text-emerald-300 font-mono truncate">
-                  {{ status.branch }}
-                </span>
-                <ChevronDown class="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 shrink-0" />
-              </div>
-            </button>
-
-            <!-- Ahead / Behind badge -->
-            <div v-if="status.ahead > 0 || status.behind > 0" class="flex items-center gap-1.5 text-[11px] font-mono shrink-0">
-              <span
-                v-if="status.ahead > 0"
-                class="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium"
-                title="Commits ahead of remote"
-              >
-                +{{ status.ahead }}
-              </span>
-              <span
-                v-if="status.behind > 0"
-                class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 border border-zinc-700/60 font-medium"
-                title="Commits behind remote"
-              >
-                -{{ status.behind }}
-              </span>
-            </div>
+      <!-- Transform only while pulled: a live transform makes this div the containing block for
+           any position:fixed descendant. Modals are teleported to <body>, but keep it off at rest. -->
+      <div
+        class="relative space-y-4"
+        :style="{
+          transform: pull > 0 ? `translateY(${pull}px)` : undefined,
+          transition: pullDragging ? 'none' : 'transform 260ms cubic-bezier(0.16, 1, 0.3, 1)',
+        }"
+      >
+        <!-- No active repo -->
+        <div
+          v-if="!activeRepo"
+          class="py-20 text-center space-y-4 bg-zinc-900/40 rounded-3xl border border-zinc-800/60 p-6"
+        >
+          <FolderGit2 class="w-12 h-12 mx-auto text-zinc-600" />
+          <div class="space-y-1">
+            <h2 class="text-base font-semibold text-zinc-200">No Repository Selected</h2>
+            <p class="text-xs text-zinc-500">Pick a registered repository or add a path on your machine.</p>
           </div>
-
-          <!-- Line 2: Upstream branch info + Quick pills (Worktrees, Stashes) -->
-          <div
-            v-if="status.upstream || worktrees.length > 0 || (status.stashCount ?? 0) > 0"
-            class="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-800/50 text-[11px] font-mono min-w-0"
+          <button
+            type="button"
+            class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-md transition-all active:scale-95"
+            @click="showRepoSelector = true"
           >
-            <!-- Upstream tracking -->
-            <div class="min-w-0 flex items-center gap-1 text-zinc-500 truncate">
-              <span v-if="status.upstream" class="truncate" :title="status.upstream">
-                ↑ {{ status.upstream }}
-              </span>
-              <span v-else class="text-zinc-600 italic">No upstream</span>
-            </div>
-
-            <!-- Quick pills with collapsed words on narrow screens -->
-            <div class="flex items-center gap-1.5 shrink-0">
-              <!-- Worktree quick pill -->
-              <button
-                v-if="worktrees.length > 0"
-                type="button"
-                class="px-2 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95"
-                title="View and switch Git Worktrees"
-                @click="showWorktreeModal = true"
-              >
-                <GitFork class="w-3 h-3" />
-                <span>{{ worktrees.length }}</span>
-                <span class="hidden sm:inline">{{ worktrees.length === 1 ? 'worktree' : 'worktrees' }}</span>
-              </button>
-
-              <!-- Stash quick pill -->
-              <button
-                v-if="(status.stashCount ?? 0) > 0"
-                type="button"
-                class="px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95"
-                title="View Git Stashes"
-                @click="showStashModal = true"
-              >
-                <Archive class="w-3 h-3" />
-                <span>{{ status.stashCount }}</span>
-                <span class="hidden sm:inline">{{ status.stashCount === 1 ? 'stash' : 'stashes' }}</span>
-              </button>
-            </div>
-          </div>
+            Manage Repositories
+          </button>
         </div>
 
-        <!-- File List Groupings -->
-        <FileList
-          :status="status"
-          @stage-files="handleStageFiles"
-          @unstage-files="handleUnstageFiles"
-          @stage-all="handleStageAll"
-          @unstage-all="handleUnstageAll"
-          @discard-files="handleDiscardFiles"
-          @discard-all="handleDiscardAll"
-          @view-diff="handleViewDiff"
-        />
-      </template>
+        <!-- Active Repo Git Control View -->
+        <template v-else-if="status">
+          <!-- Branch Header Status Pill -->
+          <div class="p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex flex-col gap-2">
+            <!-- Line 1: Interactive Branch Switcher + Ahead/Behind -->
+            <div class="flex items-center justify-between gap-2 min-w-0">
+              <button
+                type="button"
+                class="flex items-center gap-2.5 min-w-0 flex-1 group text-left cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
+                title="Switch or create branches"
+                @click="showBranchModal = true"
+              >
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors shrink-0">
+                  <GitBranch class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex items-center gap-1.5 flex-1">
+                  <span class="text-xs font-semibold text-zinc-200 group-hover:text-emerald-300 font-mono truncate">
+                    {{ status.branch }}
+                  </span>
+                  <ChevronDown class="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 shrink-0" />
+                </div>
+              </button>
+
+              <!-- Ahead / Behind badge -->
+              <div v-if="status.ahead > 0 || status.behind > 0" class="flex items-center gap-1.5 text-[11px] font-mono shrink-0">
+                <span
+                  v-if="status.ahead > 0"
+                  class="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium"
+                  title="Commits ahead of remote"
+                >
+                  +{{ status.ahead }}
+                </span>
+                <span
+                  v-if="status.behind > 0"
+                  class="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 border border-zinc-700/60 font-medium"
+                  title="Commits behind remote"
+                >
+                  -{{ status.behind }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Line 2: Upstream branch info + Quick pills (Worktrees, Stashes) -->
+            <div
+              v-if="status.upstream || worktrees.length > 0 || (status.stashCount ?? 0) > 0"
+              class="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-800/50 text-[11px] font-mono min-w-0"
+            >
+              <!-- Upstream tracking -->
+              <div class="min-w-0 flex items-center gap-1 text-zinc-500 truncate">
+                <span v-if="status.upstream" class="truncate" :title="status.upstream">
+                  ↑ {{ status.upstream }}
+                </span>
+                <span v-else class="text-zinc-600 italic">No upstream</span>
+              </div>
+
+              <!-- Quick pills with collapsed words on narrow screens -->
+              <div class="flex items-center gap-1.5 shrink-0">
+                <!-- Worktree quick pill -->
+                <button
+                  v-if="worktrees.length > 0"
+                  type="button"
+                  class="px-2 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95"
+                  title="View and switch Git Worktrees"
+                  @click="showWorktreeModal = true"
+                >
+                  <GitFork class="w-3 h-3" />
+                  <span>{{ worktrees.length }}</span>
+                  <span class="hidden sm:inline">{{ worktrees.length === 1 ? 'worktree' : 'worktrees' }}</span>
+                </button>
+
+                <!-- Stash quick pill -->
+                <button
+                  v-if="(status.stashCount ?? 0) > 0"
+                  type="button"
+                  class="px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95"
+                  title="View Git Stashes"
+                  @click="showStashModal = true"
+                >
+                  <Archive class="w-3 h-3" />
+                  <span>{{ status.stashCount }}</span>
+                  <span class="hidden sm:inline">{{ status.stashCount === 1 ? 'stash' : 'stashes' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- File List Groupings -->
+          <FileList
+            :status="status"
+            @stage-files="handleStageFiles"
+            @unstage-files="handleUnstageFiles"
+            @stage-all="handleStageAll"
+            @unstage-all="handleUnstageAll"
+            @discard-files="handleDiscardFiles"
+            @discard-all="handleDiscardAll"
+            @view-diff="handleViewDiff"
+          />
+        </template>
+      </div>
     </main>
 
     <!-- Floating Commit Bottom Drawer -->
