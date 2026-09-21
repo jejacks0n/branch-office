@@ -1116,6 +1116,7 @@ async function handleBranchCreated(branch: string) {
 
     <PrModal
       v-if="status"
+      :key="`${activeRepoId}:${status.branch}`"
       :show="showPrModal"
       :status="prStatus"
       :branch="status.branch"
