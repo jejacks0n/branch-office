@@ -615,7 +615,9 @@ func TestRouterEndpoints(t *testing.T) {
 
 		// Create a bare upstream remote
 		remoteDir := t.TempDir()
-		cmdInit := exec.Command("git", "init", "--bare", remoteDir)
+		// -b main: without it the remote HEAD follows init.defaultBranch (master on CI), so a
+		// later clone finds HEAD pointing at a branch that was never pushed.
+		cmdInit := exec.Command("git", "init", "--bare", "-b", "main", remoteDir)
 		if out, err := cmdInit.CombinedOutput(); err != nil {
 			t.Fatalf("failed to init bare remote: %v (%s)", err, out)
 		}
