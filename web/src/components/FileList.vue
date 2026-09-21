@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import type { RepoStatus, FileStatus } from '../types'
 import {
-  CheckCircle2,
   FileCode,
   Plus,
   Minus,
@@ -86,12 +85,13 @@ function confirmDiscardAll() {
       v-if="status.files.length === 0"
       class="py-16 text-center space-y-3 bg-zinc-900/30 rounded-3xl border border-zinc-800/60 p-6"
     >
-      <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-        <CheckCircle2 class="w-6 h-6" />
-      </div>
+      <!-- Decorative: the text below carries the meaning. -->
+      <img src="/favicon.svg" alt="" width="67" height="80" class="h-20 w-auto mx-auto" />
       <div class="space-y-1">
         <h3 class="font-semibold text-zinc-200">Working tree clean</h3>
-        <p class="text-xs text-zinc-500">No uncommitted changes in this repository.</p>
+        <p class="text-xs text-zinc-500 max-w-[16rem] mx-auto">
+          No uncommitted changes in this repository. Your office plant is thriving.
+        </p>
       </div>
     </div>
 
