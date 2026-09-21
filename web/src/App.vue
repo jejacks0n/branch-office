@@ -11,6 +11,7 @@ import PrModal from './components/PrModal.vue'
 import WorktreeModal from './components/WorktreeModal.vue'
 import BranchModal from './components/BranchModal.vue'
 import StashModal from './components/StashModal.vue'
+import TagModal from './components/TagModal.vue'
 import {
   FolderGit2,
   GitBranch,
@@ -21,6 +22,7 @@ import {
   AlertCircle,
   ChevronDown,
   Archive,
+  Tag,
 } from 'lucide-vue-next'
 
 const repos = ref<Repo[]>([])
@@ -40,6 +42,7 @@ const showPrModal = ref(false)
 const showWorktreeModal = ref(false)
 const showBranchModal = ref(false)
 const showStashModal = ref(false)
+const showTagModal = ref(false)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -75,6 +78,7 @@ onMounted(async () => {
 
 watch(activeRepoId, () => {
   connectSSE()
+  showTagModal.value = false
   showStashModal.value = false
   showBranchModal.value = false
   showWorktreeModal.value = false
@@ -91,9 +95,9 @@ watch(showWorktreeModal, (open) => {
 
 // Auto-collapse commit drawer whenever any modal or diff viewer opens
 watch(
-  [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, () => !!activeDiff.value],
-  ([repo, sync, pr, wt, branch, stash, diff]) => {
-    if (repo || sync || pr || wt || branch || stash || diff) {
+  [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, showTagModal, () => !!activeDiff.value],
+  ([repo, sync, pr, wt, branch, stash, tag, diff]) => {
+    if (repo || sync || pr || wt || branch || stash || tag || diff) {
       isCommitDrawerOpen.value = false
     }
   }
@@ -646,6 +650,23 @@ async function handleBranchCreated(branch: string) {
           <span v-if="(status.stashCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.stashCount }}</span>
         </button>
 
+        <!-- Tags Trigger -->
+        <button
+          v-if="status"
+          type="button"
+          :class="[
+            'p-2 rounded-xl border transition-all active:scale-95 flex items-center gap-1',
+            (status.tagCount ?? 0) > 0
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-zinc-800/80 border-zinc-700/50 text-zinc-400 hover:text-emerald-400',
+          ]"
+          title="Git Tags"
+          @click="showTagModal = true"
+        >
+          <Tag class="w-4 h-4" />
+          <span v-if="(status.tagCount ?? 0) > 0" class="text-[10px] font-mono font-bold">{{ status.tagCount }}</span>
+        </button>
+
         <!-- PR Trigger -->
         <button
           v-if="status"
@@ -885,6 +906,15 @@ async function handleBranchCreated(branch: string) {
       :change-count="status.files.length"
       @changed="() => refreshStatus(true, 'stash-changed')"
       @close="showStashModal = false"
+    />
+
+    <TagModal
+      v-if="activeRepo && status"
+      :show="showTagModal"
+      :repo-id="activeRepoId"
+      :repo-name="activeRepo.name"
+      @changed="() => refreshStatus(true, 'tag-changed')"
+      @close="showTagModal = false"
     />
   </div>
 </template>

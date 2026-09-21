@@ -76,6 +76,12 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("DELETE /api/repos/{id}/stashes", s.withRepo(s.handleClearStashes))
 	mux.HandleFunc("GET /api/repos/{id}/stashes/{index}/diff", s.withRepo(s.handleGetStashDiff))
 
+	// Git Tag endpoints
+	mux.HandleFunc("GET /api/repos/{id}/tags", s.withRepo(s.handleListTags))
+	mux.HandleFunc("POST /api/repos/{id}/tags", s.withRepo(s.handleCreateTag))
+	mux.HandleFunc("POST /api/repos/{id}/tags/{name}/push", s.withRepo(s.handlePushTag))
+	mux.HandleFunc("DELETE /api/repos/{id}/tags/{name}", s.withRepo(s.handleDeleteTag))
+
 	// Static assets and SPA fallback
 	if s.staticFS != nil {
 		fileServer := http.FileServer(http.FS(s.staticFS))
@@ -728,5 +734,84 @@ func (s *Server) handleGetStashDiff(w http.ResponseWriter, r *http.Request, repo
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"diff": diff})
 }
+
+func (s *Server) handleListTags(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	tags, err := client.ListTags()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if tags == nil {
+		tags = []git.TagItem{}
+	}
+	writeJSON(w, http.StatusOK, tags)
+}
+
+type createTagRequest struct {
+	Name    string `json:"name"`
+	Message string `json:"message"`
+	Push    bool   `json:"push"`
+}
+
+func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	var req createTagRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "tag name cannot be empty")
+		return
+	}
+
+	if err := client.CreateTag(req.Name, req.Message, ""); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.Push {
+		if err := client.PushTag(req.Name); err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("tag created locally, but failed to push to remote: %v", err))
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "name": req.Name})
+}
+
+func (s *Server) handlePushTag(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	name := r.PathValue("name")
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "tag name is required")
+		return
+	}
+
+	if err := client.PushTag(name); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	name := r.PathValue("name")
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "tag name is required")
+		return
+	}
+
+	remote := r.URL.Query().Get("remote") == "true" || r.URL.Query().Get("remote") == "1"
+
+	if err := client.DeleteTag(name, remote); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
 
 

@@ -29,6 +29,7 @@ type RepoStatus struct {
 	UntrackedCount    int          `json:"untrackedCount"`
 	ConflictedCount   int          `json:"conflictedCount"`
 	StashCount        int          `json:"stashCount"`
+	TagCount          int          `json:"tagCount"`
 }
 
 func (c *Client) Status() (*RepoStatus, error) {
@@ -42,6 +43,7 @@ func (c *Client) Status() (*RepoStatus, error) {
 		HasHead:           c.HasHead(),
 		LastCommitMessage: c.GetLastCommitMessage(),
 		StashCount:        c.GetStashCount(),
+		TagCount:          c.GetTagCount(),
 		Files:             []FileStatus{},
 	}
 

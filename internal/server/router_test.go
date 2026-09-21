@@ -527,5 +527,83 @@ func TestRouterEndpoints(t *testing.T) {
 		// Clean up restored file
 		os.Remove(stashFile)
 	})
+
+	t.Run("Git Tag Endpoints", func(t *testing.T) {
+		// List initially empty
+		req := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/tags", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 from tags list, got %d", rec.Code)
+		}
+		var tags []git.TagItem
+		json.NewDecoder(rec.Body).Decode(&tags)
+		if len(tags) != 0 {
+			t.Fatalf("expected 0 tags, got %d", len(tags))
+		}
+
+		// POST /api/repos/{id}/tags (create annotated tag)
+		createPayload := `{"name":"v1.0.0","message":"release v1.0.0","push":false}`
+		reqCreate := httptest.NewRequest("POST", "/api/repos/"+repo.ID+"/tags", strings.NewReader(createPayload))
+		reqCreate.Header.Set("Content-Type", "application/json")
+		recCreate := httptest.NewRecorder()
+		handler.ServeHTTP(recCreate, reqCreate)
+		if recCreate.Code != http.StatusOK {
+			t.Fatalf("expected 200 from create tag, got %d: %s", recCreate.Code, recCreate.Body.String())
+		}
+
+		// POST /api/repos/{id}/tags (create lightweight tag)
+		createLwPayload := `{"name":"v1.0.1-lw","push":false}`
+		reqCreateLw := httptest.NewRequest("POST", "/api/repos/"+repo.ID+"/tags", strings.NewReader(createLwPayload))
+		reqCreateLw.Header.Set("Content-Type", "application/json")
+		recCreateLw := httptest.NewRecorder()
+		handler.ServeHTTP(recCreateLw, reqCreateLw)
+		if recCreateLw.Code != http.StatusOK {
+			t.Fatalf("expected 200 from create lightweight tag, got %d: %s", recCreateLw.Code, recCreateLw.Body.String())
+		}
+
+		// GET /api/repos/{id}/tags
+		reqList := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/tags", nil)
+		recList := httptest.NewRecorder()
+		handler.ServeHTTP(recList, reqList)
+		if recList.Code != http.StatusOK {
+			t.Fatalf("expected 200 from tags list, got %d", recList.Code)
+		}
+		json.NewDecoder(recList.Body).Decode(&tags)
+		if len(tags) != 2 {
+			t.Fatalf("expected 2 tags, got %d", len(tags))
+		}
+
+		// Check status has TagCount == 2
+		reqStatus := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/status", nil)
+		recStatus := httptest.NewRecorder()
+		handler.ServeHTTP(recStatus, reqStatus)
+		var repoStatus git.RepoStatus
+		json.NewDecoder(recStatus.Body).Decode(&repoStatus)
+		if repoStatus.TagCount != 2 {
+			t.Fatalf("expected repoStatus.TagCount == 2, got %d", repoStatus.TagCount)
+		}
+
+		// DELETE /api/repos/{id}/tags/v1.0.1-lw
+		reqDel := httptest.NewRequest("DELETE", "/api/repos/"+repo.ID+"/tags/v1.0.1-lw", nil)
+		recDel := httptest.NewRecorder()
+		handler.ServeHTTP(recDel, reqDel)
+		if recDel.Code != http.StatusOK {
+			t.Fatalf("expected 200 from delete tag, got %d: %s", recDel.Code, recDel.Body.String())
+		}
+
+		// Verify 1 tag remains
+		reqListAfter := httptest.NewRequest("GET", "/api/repos/"+repo.ID+"/tags", nil)
+		recListAfter := httptest.NewRecorder()
+		handler.ServeHTTP(recListAfter, reqListAfter)
+		var tagsAfter []git.TagItem
+		json.NewDecoder(recListAfter.Body).Decode(&tagsAfter)
+		if len(tagsAfter) != 1 {
+			t.Fatalf("expected 1 tag after delete, got %d", len(tagsAfter))
+		}
+		if tagsAfter[0].Name != "v1.0.0" {
+			t.Fatalf("expected remaining tag 'v1.0.0', got '%s'", tagsAfter[0].Name)
+		}
+	})
 }
 

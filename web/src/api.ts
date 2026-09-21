@@ -1,4 +1,4 @@
-import type { Repo, RepoStatus, FileDiff, PRStatus, PRDetails, Worktree, Branch, StashItem } from './types'
+import type { Repo, RepoStatus, FileDiff, PRStatus, PRDetails, Worktree, Branch, StashItem, TagItem } from './types'
 
 const BASE_URL = '/api'
 
@@ -223,5 +223,36 @@ export const api = {
 
   async getStashDiff(repoId: string, index: number): Promise<{ diff: string }> {
     return request<{ diff: string }>(`/repos/${repoId}/stashes/${index}/diff`)
+  },
+
+  // Tags
+  async getTags(repoId: string): Promise<TagItem[]> {
+    const res = await request<TagItem[]>(`/repos/${repoId}/tags`)
+    return Array.isArray(res) ? res : []
+  },
+
+  async createTag(
+    repoId: string,
+    options: { name: string; message?: string; push?: boolean }
+  ): Promise<{ success: boolean; name: string }> {
+    return request<{ success: boolean; name: string }>(`/repos/${repoId}/tags`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    })
+  },
+
+  async pushTag(repoId: string, tagName: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/repos/${repoId}/tags/${encodeURIComponent(tagName)}/push`, {
+      method: 'POST',
+    })
+  },
+
+  async deleteTag(repoId: string, tagName: string, remote = false): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/repos/${repoId}/tags/${encodeURIComponent(tagName)}${remote ? '?remote=true' : ''}`,
+      {
+        method: 'DELETE',
+      }
+    )
   },
 }

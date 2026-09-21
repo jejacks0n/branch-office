@@ -42,6 +42,7 @@ export interface RepoStatus {
   untrackedCount: number
   conflictedCount: number
   stashCount?: number
+  tagCount?: number
 }
 
 export interface DiffLine {
@@ -113,4 +114,13 @@ export interface StashItem {
   branch: string
   date: string
 }
+
+export interface TagItem {
+  name: string
+  commitHash: string
+  date: string
+  isAnnotated: boolean
+  message: string
+}
+
 
