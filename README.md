@@ -25,13 +25,11 @@ manage GitHub pull requests directly from your phone.
 
 This project was born from a personal need / desire. I was doing a lot of programming from my phone with agents, but as
 a git purist, I don't allow my agents to commit on my behalf and use [Secretive](https://github.com/maxgoedjen/secretive)
-(for managed SSH keys within Secure Enclave which requires biometrics) but I still wanted to be able to review diffs,
+(for managed SSH keys within Secure Enclave) which requires biometrics, but I still wanted to be able to review diffs,
 stage hunks/files, review changes, write commit messages from my phone, and do all of the other lifecycle things like
 pushing and opening PRs from my phone as well.
 
-Doing that via SSH is a pain, because I have to disable/circumvent biometric authentication for my ssh key across the
-board, or I had to create an app that would allow me to specify a separate SSH key. Because of this Branch Office has
-SSH key functionality built-in, so if you value signing your commits, it's great at handling that too.
+Doing that via SSH is a bit of a pain, and I also wanted an interface that saved on typing.
 
 ---
 
