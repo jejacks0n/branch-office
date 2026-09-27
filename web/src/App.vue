@@ -122,6 +122,18 @@ watch(showWorktreeModal, (open) => {
   }
 })
 
+// The repo list carries each repo's branch and change count, which go stale
+// after commits, pushes, or edits made outside the app. Refetch on open; the
+// cached list shows meanwhile.
+watch(showRepoSelector, async (open) => {
+  if (!open) return
+  try {
+    repos.value = await api.getRepos()
+  } catch {
+    // Keep the cached list; the next open retries.
+  }
+})
+
 // Auto-collapse commit drawer whenever any modal, dropdown, or diff viewer opens
 watch(
   [showRepoSelector, showSyncModal, showPrModal, showWorktreeModal, showBranchModal, showStashModal, showTagModal, showLogModal, showActionsDropdown, () => !!activeDiff.value],
