@@ -687,7 +687,7 @@ async function handleBranchCreated(branch: string) {
 </script>
 
 <template>
-  <div class="h-full w-full bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-hidden">
+  <div class="h-full w-full bg-zinc-950 text-zinc-100 flex flex-col font-sans overflow-hidden">
     <!-- Top Navigation Bar -->
     <header
       class="pt-safe px-4 pb-3.5 bg-zinc-900/90 backdrop-blur-md border-b border-zinc-800/80 shrink-0 z-30 flex items-center justify-between touch-none"
@@ -948,7 +948,7 @@ async function handleBranchCreated(branch: string) {
         }"
       >
         <div class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700/70 shadow-lg flex items-center justify-center">
-          <ThinkingOrb state="working" :size="20" color="#34d399" :paused="pull === 0" />
+          <ThinkingOrb state="working" :size="20" class="text-emerald-400" :paused="pull === 0" />
         </div>
       </div>
 

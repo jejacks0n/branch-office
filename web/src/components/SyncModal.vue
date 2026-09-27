@@ -145,7 +145,7 @@ function handleFetch() {
               title="Fetch latest remote branches and commits"
               @click="handleFetch"
             >
-              <ThinkingOrb v-if="busy === 'fetch'" state="composing" color="#34d399" :size="20" class="-my-0.5 shrink-0" aria-hidden="true" />
+              <ThinkingOrb v-if="busy === 'fetch'" state="composing" :size="20" class="text-emerald-400 -my-0.5 shrink-0" aria-hidden="true" />
               <RefreshCw v-else class="w-3.5 h-3.5" />
               <span>{{ busy === 'fetch' ? 'Fetching...' : 'Fetch' }}</span>
             </button>
@@ -170,7 +170,7 @@ function handleFetch() {
             ]"
             @click="handlePull"
           >
-            <ThinkingOrb v-if="busy === 'pull'" state="composing" color="#34d399" :size="20" class="shrink-0" aria-hidden="true" />
+            <ThinkingOrb v-if="busy === 'pull'" state="composing" :size="20" class="text-emerald-400 shrink-0" aria-hidden="true" />
             <DownloadCloud v-else class="w-4 h-4" />
             <span>{{ busy === 'pull' ? 'Pulling...' : 'Pull from Remote' }}</span>
           </button>
@@ -228,7 +228,7 @@ function handleFetch() {
             ]"
             @click="handleRegularPush"
           >
-            <ThinkingOrb v-if="busy === 'push'" state="composing" color="#34d399" :size="20" class="shrink-0" aria-hidden="true" />
+            <ThinkingOrb v-if="busy === 'push'" state="composing" :size="20" class="text-emerald-400 shrink-0" aria-hidden="true" />
             <UploadCloud v-else class="w-4 h-4" />
             <span>{{ busy === 'push' ? 'Pushing...' : 'Push to Remote' }}</span>
           </button>
@@ -245,7 +245,7 @@ function handleFetch() {
             ]"
             @click="showForceConfirm = true"
           >
-            <ThinkingOrb v-if="busy === 'force-push'" state="composing" color="#fca5a5" :size="20" class="-my-0.5 shrink-0" aria-hidden="true" />
+            <ThinkingOrb v-if="busy === 'force-push'" state="composing" :size="20" class="text-red-300 -my-0.5 shrink-0" aria-hidden="true" />
             <ShieldAlert v-else class="w-4 h-4" />
             <span>{{ busy === 'force-push' ? 'Force pushing...' : 'Force Push (--force-with-lease)' }}</span>
           </button>

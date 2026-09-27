@@ -1,9 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" class="dark h-full overflow-hidden">
+<html lang="en" class="h-full overflow-hidden">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#09090b" />
+    <!-- Set the theme before first paint so light users don't see a dark flash.
+         src/theme.ts takes over once the app loads. -->
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('broffice_theme')
+          || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      } catch (e) {}
+    </script>
     <title>Branch Office</title>
 
     <!-- Home screen / installed app -->
@@ -26,7 +34,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-[#09090b] text-zinc-100 antialiased font-sans select-none h-full w-full overflow-hidden">
+  <body class="bg-zinc-950 text-zinc-100 antialiased font-sans select-none h-full w-full overflow-hidden">
     <div id="app" class="h-full w-full overflow-hidden"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

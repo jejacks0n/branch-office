@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { Repo } from '../types'
-import { FolderGit2, Plus, Trash2, X, GitBranch, AlertCircle } from 'lucide-vue-next'
+import { FolderGit2, Plus, Trash2, X, GitBranch, AlertCircle, Monitor, Sun, Moon } from 'lucide-vue-next'
 import ConfirmModal from './ConfirmModal.vue'
+import { themePref } from '../theme'
+
+const themeOptions = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+] as const
 
 const props = defineProps<{
   show: boolean
@@ -166,6 +173,28 @@ function confirmDelete() {
             @click.stop="promptDelete(repo)"
           >
             <Trash2 class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between gap-3">
+        <span class="text-xs font-medium text-zinc-400">Appearance</span>
+        <div role="radiogroup" aria-label="Appearance" class="flex p-0.5 rounded-xl bg-zinc-950/40 border border-zinc-800">
+          <button
+            v-for="opt in themeOptions"
+            :key="opt.value"
+            type="button"
+            role="radio"
+            :aria-checked="themePref === opt.value"
+            :class="[
+              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] text-xs font-medium transition-colors',
+              themePref === opt.value ? 'bg-zinc-800 text-zinc-100 shadow-sm' : 'text-zinc-500 hover:text-zinc-300',
+            ]"
+            @click="themePref = opt.value"
+          >
+            <component :is="opt.icon" class="w-3.5 h-3.5" />
+            {{ opt.label }}
           </button>
         </div>
       </div>

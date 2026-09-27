@@ -1,10 +1,17 @@
+import colors from 'tailwindcss/colors'
+
+// Theme-aware shades read from CSS variables defined in src/style.css, which
+// swap under prefers-color-scheme so existing classes work in light and dark.
+const v = (name) => `rgb(var(--${name}) / <alpha-value>)`
+const themed = (name, shades) =>
+  Object.fromEntries(shades.map((s) => [s, v(`${name}-${s}`)]))
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -12,22 +19,16 @@ export default {
         mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Courier New', 'monospace'],
       },
       colors: {
-        brand: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-        },
-        surface: {
-          50: '#18181b',
-          100: '#27272a',
-          200: '#3f3f46',
-          border: '#27272a',
-          card: '#121215',
-          bg: '#09090b',
-        }
-      }
+        // Neutrals invert fully; accents only flip the light text shades and the
+        // 950 tints. The 500/600 fills behind white text read fine on both.
+        zinc: themed('zinc', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
+        emerald: { ...colors.emerald, ...themed('emerald', [200, 300, 400, 950]) },
+        red: { ...colors.red, ...themed('red', [200, 300, 400, 950]) },
+        amber: { ...colors.amber, ...themed('amber', [300, 400]) },
+        purple: { ...colors.purple, ...themed('purple', [300, 400]) },
+        teal: { ...colors.teal, ...themed('teal', [400, 950]) },
+        sky: { ...colors.sky, ...themed('sky', [400]) },
+      },
     },
   },
   plugins: [],

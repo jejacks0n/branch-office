@@ -10,7 +10,7 @@ const props = withDefaults(
     speed?: number
     paused?: boolean
     dark?: boolean
-    /** CSS color for the ink. Unset keeps the library's neutral grayscale. */
+    /** CSS color for the ink. Unset uses the inherited text color (currentColor). */
     color?: string
   }>(),
   {
@@ -43,16 +43,16 @@ function render(ctx: CanvasRenderingContext2D, dpr: number) {
   }
   // The engine paints grayscale ink and encodes the shape in alpha, so recolouring is
   // lossless: `source-in` keeps each pixel's existing alpha and swaps only the colour.
-  // Not a filter and not a library patch. Keep `dark` on so the alpha tuning still suits
-  // a dark surface.
-  if (props.color) {
-    ctx.save()
-    ctx.globalCompositeOperation = 'source-in'
-    ctx.globalAlpha = 1
-    ctx.fillStyle = props.color
-    ctx.fillRect(0, 0, s, s)
-    ctx.restore()
-  }
+  // Not a filter and not a library patch. Keep `dark` on so the alpha tuning stays the
+  // same; the ink is always recoloured, so it works on light surfaces too. The colour is
+  // read from the canvas's computed `color` each frame so themed classes (CSS
+  // variables) follow a live light/dark switch.
+  ctx.save()
+  ctx.globalCompositeOperation = 'source-in'
+  ctx.globalAlpha = 1
+  ctx.fillStyle = getComputedStyle(ctx.canvas).color
+  ctx.fillRect(0, 0, s, s)
+  ctx.restore()
 }
 
 function loop() {
@@ -131,6 +131,6 @@ onUnmounted(() => {
     ref="canvasRef"
     role="img"
     :aria-label="state"
-    :style="{ width: `${size}px`, height: `${size}px`, display: 'inline-block', verticalAlign: 'middle' }"
+    :style="{ width: `${size}px`, height: `${size}px`, display: 'inline-block', verticalAlign: 'middle', color }"
   />
 </template>
