@@ -53,4 +53,13 @@ feat(howto): add caution field with callout rendering
 	if gotMultiCoauthor != expected {
 		t.Fatalf("multi co-author test failed: expected:\n%s\n\ngot:\n%s", expected, gotMultiCoauthor)
 	}
+	// Tagged output: narration and trailing chatter outside the tags are dropped,
+	// and the last block wins when Copilot drafts more than once.
+	taggedInput := "I'll start by reviewing the staged diff to understand the changes.\n" +
+		"The changes add a caution field.\n<commit_message>\ndraft\n</commit_message>\n" +
+		"Let me refine that.\n<commit_message>\n" + expected + "\n</commit_message>\nLet me know if you want changes."
+	gotTagged := CleanCommitMessage(taggedInput)
+	if gotTagged != expected {
+		t.Fatalf("tagged test failed: expected:\n%s\n\ngot:\n%s", expected, gotTagged)
+	}
 }

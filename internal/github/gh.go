@@ -135,7 +135,7 @@ func (c *Client) GenerateCommitMessage(ctx context.Context, diff string, hint st
 
 	prompt := "Generate a concise conventional git commit message based on the diff provided via stdin.\n" +
 		"STRICT INSTRUCTIONS:\n" +
-		"- Output ONLY the raw commit message.\n" +
+		"- Wrap the final commit message in <commit_message> and </commit_message> tags, each on its own line. Anything outside the tags is discarded.\n" +
 		"- Absolutely NO conversational filler, preface, commentary, or pleasantries (do NOT say 'I have enough context', 'Here is the commit message', etc.).\n" +
 		"- Start directly on line 1 with the commit subject line (e.g. feat(scope): description).\n" +
 		"- Follow with an optional blank line and concise bullet points.\n" +
@@ -168,12 +168,23 @@ func (c *Client) GenerateCommitMessage(ctx context.Context, diff string, hint st
 	return CleanCommitMessage(stdout.String()), nil
 }
 
-// CleanCommitMessage sanitizes output from LLMs by stripping conversational filler,
+// CleanCommitMessage sanitizes output from LLMs by extracting the
+// <commit_message> block when present, then stripping conversational filler,
 // code fences, and markdown wrappers.
 func CleanCommitMessage(raw string) string {
 	text := strings.TrimSpace(raw)
 	if text == "" {
 		return ""
+	}
+
+	// Prefer the tagged block the prompt asks for. Copilot can narrate before
+	// answering, so take the last block and drop everything around it.
+	if start := strings.LastIndex(text, "<commit_message>"); start >= 0 {
+		inner := text[start+len("<commit_message>"):]
+		if end := strings.Index(inner, "</commit_message>"); end >= 0 {
+			inner = inner[:end]
+		}
+		text = strings.TrimSpace(inner)
 	}
 
 	// Strip outer markdown code fences if present
