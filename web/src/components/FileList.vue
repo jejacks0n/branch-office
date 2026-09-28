@@ -9,6 +9,8 @@ import {
   CheckCheck,
   Eye,
   Trash2,
+  Folder,
+  EyeOff,
 } from 'lucide-vue-next'
 import ConfirmModal from './ConfirmModal.vue'
 
@@ -23,6 +25,7 @@ const emit = defineEmits<{
   (e: 'unstage-all'): void
   (e: 'discard-files', files: string[]): void
   (e: 'discard-all'): void
+  (e: 'ignore-path', path: string): void
   (e: 'view-diff', file: FileStatus, staged: boolean): void
 }>()
 
@@ -34,13 +37,16 @@ const unstagedFiles = computed(() => props.status.files.filter((f) => f.isUnstag
 const untrackedFiles = computed(() => props.status.files.filter((f) => f.isUntracked))
 
 function formatPath(filePath: string) {
+  // Collapsed untracked directories end in "/": show them by their own name.
+  const isDir = filePath.endsWith('/')
+  if (isDir) filePath = filePath.slice(0, -1)
   const lastSlash = filePath.lastIndexOf('/')
   if (lastSlash === -1) {
-    return { dir: '', file: filePath }
+    return { dir: '', file: filePath + (isDir ? '/' : '') }
   }
   return {
     dir: filePath.slice(0, lastSlash + 1),
-    file: filePath.slice(lastSlash + 1),
+    file: filePath.slice(lastSlash + 1) + (isDir ? '/' : ''),
   }
 }
 
@@ -234,7 +240,7 @@ function confirmDiscardAll() {
         <div class="flex items-center gap-2">
           <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Untracked</span>
           <span class="text-xs px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700/60 text-zinc-400 font-mono font-medium">
-            {{ untrackedFiles.length }}
+            {{ status.untrackedCount }}
           </span>
         </div>
 
@@ -251,8 +257,11 @@ function confirmDiscardAll() {
         <div
           v-for="file in untrackedFiles"
           :key="file.path"
-          class="group flex items-center justify-between p-3 rounded-2xl bg-zinc-900/70 hover:bg-zinc-800/80 border border-zinc-800/80 transition-all cursor-pointer active:scale-[0.99]"
-          @click="emit('view-diff', file, false)"
+          :class="[
+            'group flex items-center justify-between p-3 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 transition-all',
+            file.fileCount ? '' : 'hover:bg-zinc-800/80 cursor-pointer active:scale-[0.99]',
+          ]"
+          @click="!file.fileCount && emit('view-diff', file, false)"
         >
           <div class="flex items-center gap-2.5 min-w-0 pr-2">
             <span
@@ -261,20 +270,36 @@ function confirmDiscardAll() {
                 getStatusBadge(file.unstagedStatus).class,
               ]"
             >
-              ?
+              <Folder v-if="file.fileCount" class="w-3 h-3" />
+              <template v-else>?</template>
             </span>
 
             <div class="min-w-0 text-xs font-mono flex items-baseline gap-1.5" :title="file.path">
               <span class="text-zinc-200 font-semibold shrink-0">{{ formatPath(file.path).file }}</span>
               <span v-if="formatPath(file.path).dir" class="text-zinc-500 text-[11px] truncate">{{ formatPath(file.path).dir }}</span>
             </div>
+            <span
+              v-if="file.fileCount"
+              class="px-1.5 py-0.5 rounded-md bg-zinc-800 border border-zinc-700/60 text-zinc-300 text-[10px] font-mono font-bold shrink-0"
+            >
+              {{ file.fileCount.toLocaleString() }} files
+            </span>
           </div>
 
           <div class="flex items-center gap-1 shrink-0" @click.stop>
             <button
               type="button"
+              class="p-2 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-zinc-500/10 transition-colors"
+              title="Add to .gitignore"
+              @click="emit('ignore-path', file.path)"
+            >
+              <EyeOff class="w-4 h-4" />
+            </button>
+
+            <button
+              type="button"
               class="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-              title="Delete untracked file"
+              :title="file.fileCount ? 'Delete untracked directory' : 'Delete untracked file'"
               @click="promptDiscard(file)"
             >
               <Trash2 class="w-4 h-4" />
@@ -283,7 +308,7 @@ function confirmDiscardAll() {
             <button
               type="button"
               class="p-2 rounded-xl text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-              title="Stage untracked file"
+              :title="file.fileCount ? 'Stage directory' : 'Stage untracked file'"
               @click="emit('stage-files', [file.path])"
             >
               <Plus class="w-4 h-4" />
@@ -297,7 +322,9 @@ function confirmDiscardAll() {
     <ConfirmModal
       :show="!!fileToDiscard"
       title="Discard Changes"
-      :message="`Are you sure you want to revert changes in '${fileToDiscard?.path}'? This action cannot be undone.`"
+      :message="fileToDiscard?.fileCount
+        ? `Delete '${fileToDiscard.path}' and the ${fileToDiscard.fileCount.toLocaleString()} untracked files inside it? This action cannot be undone.`
+        : `Are you sure you want to revert changes in '${fileToDiscard?.path}'? This action cannot be undone.`"
       confirm-text="Discard"
       @cancel="fileToDiscard = null"
       @confirm="confirmDiscard"
@@ -307,7 +334,7 @@ function confirmDiscardAll() {
     <ConfirmModal
       :show="discardAllPrompt"
       title="Discard All Changes"
-      message="Are you sure you want to discard ALL unstaged modifications in this repository? Your working tree changes will be permanently lost."
+      message="Are you sure you want to discard ALL unstaged modifications in this repository? Your working tree changes will be permanently lost. Untracked files are kept."
       confirm-text="Discard All"
       @cancel="discardAllPrompt = false"
       @confirm="confirmDiscardAll"

@@ -370,7 +370,7 @@ const diffNavFiles = computed<DiffNavFile[]>(() => {
       .map((f) => ({ file: f, staged: true }))
   }
   return status.value.files
-    .filter((f) => f.isUnstaged || f.isUntracked)
+    .filter((f) => (f.isUnstaged || f.isUntracked) && !f.fileCount)
     .map((f) => ({ file: f, staged: false }))
 })
 
@@ -500,6 +500,17 @@ async function handleDiscardFiles(files: string[]) {
   }
 }
 
+async function handleIgnorePath(path: string) {
+  if (!activeRepoId.value) return
+  try {
+    error.value = null
+    await api.ignorePath(activeRepoId.value, path)
+    await refreshStatus()
+  } catch (err: any) {
+    error.value = err.message || 'Failed to add to .gitignore'
+  }
+}
+
 async function handleDiscardAll() {
   if (!activeRepoId.value) return
   try {
@@ -523,15 +534,10 @@ async function handleDiscardHunk(patch: string) {
 }
 
 // Commit
-async function handleCommit(payload: { message: string; amend: boolean }) {
-  if (!activeRepoId.value) return
-  try {
-    error.value = null
-    await api.commit(activeRepoId.value, payload.message, payload.amend)
-    await refreshStatus(false, 'commit')
-  } catch (err: any) {
-    error.value = err.message || 'Failed to commit'
-  }
+// The drawer runs the commit itself so it can show progress and keep the
+// message on failure; this just picks up the new state.
+async function handleCommitted() {
+  await refreshStatus(false, 'commit')
 }
 
 // Push / Sync
@@ -1087,6 +1093,7 @@ async function handleBranchCreated(branch: string) {
             @unstage-all="handleUnstageAll"
             @discard-files="handleDiscardFiles"
             @discard-all="handleDiscardAll"
+            @ignore-path="handleIgnorePath"
             @view-diff="handleViewDiff"
           />
         </template>
@@ -1102,7 +1109,7 @@ async function handleBranchCreated(branch: string) {
       :last-commit-message="status.lastCommitMessage"
       :open="isCommitDrawerOpen"
       @update:open="(open) => (isCommitDrawerOpen = open)"
-      @commit="handleCommit"
+      @committed="handleCommitted"
     />
 
     <!-- Modals & Drawers -->

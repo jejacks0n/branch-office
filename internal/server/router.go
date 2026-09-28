@@ -48,6 +48,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/repos/{id}/stage-hunk", s.withRepo(s.handleStageHunk))
 	mux.HandleFunc("POST /api/repos/{id}/unstage-hunk", s.withRepo(s.handleUnstageHunk))
 	mux.HandleFunc("POST /api/repos/{id}/discard", s.withRepo(s.handleDiscard))
+	mux.HandleFunc("POST /api/repos/{id}/ignore", s.withRepo(s.handleIgnore))
 	mux.HandleFunc("POST /api/repos/{id}/discard-hunk", s.withRepo(s.handleDiscardHunk))
 	mux.HandleFunc("POST /api/repos/{id}/commit", s.withRepo(s.handleCommit))
 	mux.HandleFunc("GET /api/repos/{id}/last-commit", s.withRepo(s.handleGetLastCommitMessage))
@@ -320,6 +321,21 @@ func (s *Server) handleStage(w http.ResponseWriter, r *http.Request, repo *confi
 
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+func (s *Server) handleIgnore(w http.ResponseWriter, r *http.Request, repo *config.Repo, client *git.Client) {
+	var body struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := client.IgnorePath(body.Path); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"success": true})

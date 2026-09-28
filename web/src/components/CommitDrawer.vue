@@ -13,7 +13,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'commit', payload: { message: string; amend: boolean }): void
+  (e: 'committed'): void
   (e: 'update:open', open: boolean): void
 }>()
 
@@ -30,9 +30,57 @@ watch(
 const message = ref('')
 const amend = ref(false)
 const savedDraft = ref('')
-const isSubmitting = ref(false)
-const isGenerating = ref(false)
+// Which repo a commit or Copilot request is running for, so switching repos
+// mid-request doesn't show its progress, or land its result, in another repo.
+const submittingRepo = ref<string | null>(null)
+const generatingRepo = ref<string | null>(null)
+const isSubmitting = computed(() => !!props.repoId && submittingRepo.value === props.repoId)
+const isGenerating = computed(() => !!props.repoId && generatingRepo.value === props.repoId)
 const copilotError = ref<string | null>(null)
+const commitError = ref<string | null>(null)
+
+// Unsent messages, per repo, kept in localStorage so they survive reloads
+// (phones often reload a backgrounded web app). The drawer outlives repo
+// switches, so each repo's draft is swapped in when it becomes active.
+const DRAFTS_KEY = 'broffice_commit_drafts'
+
+function loadDrafts(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {}
+  } catch {
+    return {}
+  }
+}
+
+const drafts = loadDrafts()
+
+function setDraft(repoId: string, text: string) {
+  if (text.trim()) drafts[repoId] = text
+  else delete drafts[repoId]
+  try {
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts))
+  } catch {
+    // Storage unavailable (private mode); drafts still last for this session.
+  }
+}
+
+watch(
+  () => props.repoId,
+  (next) => {
+    amend.value = false
+    savedDraft.value = ''
+    message.value = (next && drafts[next]) || ''
+    commitError.value = null
+    copilotError.value = null
+  },
+  { immediate: true }
+)
+
+// Save on every edit. While amending, the box holds the last commit's
+// message; the user's own draft is in savedDraft.
+watch([message, amend, savedDraft], () => {
+  if (props.repoId) setDraft(props.repoId, amend.value ? savedDraft.value : message.value)
+})
 
 watch(amend, async (isAmending) => {
   if (isAmending) {
@@ -72,37 +120,60 @@ const canCommit = computed(() => {
   return message.value.trim().length > 0 && (props.stagedCount > 0 || amend.value)
 })
 
+// Copilot's last output per repo. The box is sent as author guidance, but not
+// when it still holds that output: guiding Copilot with its own message just
+// gets the same message back, so an unedited box asks for a fresh one.
+const lastGenerated = new Map<string, string>()
+
 async function handleGenerateMessage() {
-  if (!props.repoId || props.stagedCount === 0 || isGenerating.value) return
-  isGenerating.value = true
+  const repoId = props.repoId
+  if (!repoId || props.stagedCount === 0 || isGenerating.value) return
+  generatingRepo.value = repoId
   copilotError.value = null
+  const current = message.value.trim()
+  const hint = current === lastGenerated.get(repoId) ? '' : current
   try {
-    const res = await api.generateCommitMessage(props.repoId, message.value.trim())
+    const res = await api.generateCommitMessage(repoId, hint)
     if (res.message) {
-      message.value = res.message
+      lastGenerated.set(repoId, res.message.trim())
+      if (props.repoId === repoId) message.value = res.message
+      else setDraft(repoId, res.message)
     }
   } catch (err: any) {
-    copilotError.value = err.message || 'Failed to generate commit message'
+    if (props.repoId === repoId) copilotError.value = err.message || 'Failed to generate commit message'
   } finally {
-    isGenerating.value = false
+    if (generatingRepo.value === repoId) generatingRepo.value = null
   }
 }
 
+// Commits can take a while (hooks, signing), so the drawer waits for the result:
+// it shows progress meanwhile and keeps the message if the commit fails.
 async function handleSubmit() {
-  if (!canCommit.value || isSubmitting.value) return
-  isSubmitting.value = true
+  const repoId = props.repoId
+  if (!repoId || !canCommit.value || isSubmitting.value) return
+  submittingRepo.value = repoId
+  commitError.value = null
   try {
-    emit('commit', {
-      message: message.value.trim(),
-      amend: amend.value,
-    })
-    message.value = ''
-    amend.value = false
-    savedDraft.value = ''
-    isOpen.value = false
-    emit('update:open', false)
+    await api.commit(repoId, message.value.trim(), amend.value)
+    setDraft(repoId, '')
+    if (props.repoId === repoId) {
+      message.value = ''
+      amend.value = false
+      savedDraft.value = ''
+      isOpen.value = false
+      emit('update:open', false)
+    }
+    emit('committed')
+  } catch (err: any) {
+    // After a switch away the draft is already parked for that repo; its
+    // staged files still show the commit didn't go through.
+    if (props.repoId === repoId) {
+      commitError.value = err.message || 'Commit failed'
+      isOpen.value = true
+      emit('update:open', true)
+    }
   } finally {
-    isSubmitting.value = false
+    if (submittingRepo.value === repoId) submittingRepo.value = null
   }
 }
 
@@ -133,12 +204,16 @@ function toggleOpen() {
               : 'bg-zinc-800 border-zinc-700/60 text-zinc-400',
           ]"
         >
-          <GitCommit class="w-4 h-4" />
+          <ThinkingOrb v-if="isSubmitting" state="working" :size="16" />
+          <GitCommit v-else class="w-4 h-4" />
         </div>
 
         <div>
           <span class="text-xs font-semibold text-zinc-200">
-            {{ stagedCount === 0 ? 'No files staged' : `${stagedCount} ${stagedCount === 1 ? 'file' : 'files'} staged` }}
+            <template v-if="isSubmitting">{{ amend ? 'Amending commit…' : 'Committing…' }}</template>
+            <template v-else>
+              {{ stagedCount === 0 ? 'No files staged' : `${stagedCount} ${stagedCount === 1 ? 'file' : 'files'} staged` }}
+            </template>
           </span>
           <span v-if="amend" class="ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
             Amend
@@ -186,9 +261,24 @@ function toggleOpen() {
         </button>
       </div>
 
+      <!-- Commit Error Alert: hook output can span many lines -->
+      <div
+        v-if="commitError"
+        class="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start justify-between gap-2"
+      >
+        <div class="flex items-start gap-1.5 min-w-0">
+          <AlertCircle class="w-3.5 h-3.5 shrink-0 mt-px" />
+          <pre class="font-mono text-[11px] whitespace-pre-wrap break-words max-h-32 overflow-y-auto select-text">{{ commitError }}</pre>
+        </div>
+        <button class="text-red-400 hover:text-red-200 shrink-0 font-bold text-xs" @click="commitError = null">
+          ✕
+        </button>
+      </div>
+
       <div>
         <textarea
           v-model="message"
+          :readonly="isSubmitting"
           rows="5"
           placeholder="Commit message (or tap Copilot to generate)..."
           class="w-full p-3 bg-zinc-950/80 border border-zinc-700/80 rounded-2xl text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-sans transition-colors resize-none min-h-[130px] sm:min-h-[150px]"
@@ -205,6 +295,7 @@ function toggleOpen() {
           <input
             type="checkbox"
             v-model="amend"
+            :disabled="isSubmitting"
             class="rounded border-zinc-700 text-emerald-500 focus:ring-0 focus:outline-none bg-zinc-800 w-4 h-4 accent-emerald-500"
           />
           <span>Amend previous commit</span>
@@ -215,11 +306,13 @@ function toggleOpen() {
         <button
           type="button"
           :disabled="!canCommit || isSubmitting"
-          class="px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md active:scale-95 transition-all"
+          :aria-busy="isSubmitting"
+          class="px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:cursor-not-allowed aria-busy:!opacity-100 disabled:opacity-40 text-white shadow-md active:scale-95 transition-all"
           @click="handleSubmit"
         >
-          <Check class="w-4 h-4 stroke-[2.5]" />
-          <span>{{ amend ? 'Amend Commit' : 'Commit' }}</span>
+          <ThinkingOrb v-if="isSubmitting" state="working" :size="16" class="shrink-0" />
+          <Check v-else class="w-4 h-4 stroke-[2.5]" />
+          <span>{{ isSubmitting ? (amend ? 'Amending…' : 'Committing…') : amend ? 'Amend Commit' : 'Commit' }}</span>
         </button>
       </div>
     </div>

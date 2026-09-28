@@ -99,6 +99,13 @@ export const api = {
     })
   },
 
+  async ignorePath(repoId: string, path: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/repos/${repoId}/ignore`, {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    })
+  },
+
   async discardHunk(repoId: string, patch: string): Promise<{ success: boolean }> {
     return request<{ success: boolean }>(`/repos/${repoId}/discard-hunk`, {
       method: 'POST',

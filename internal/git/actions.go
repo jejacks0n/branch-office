@@ -17,8 +17,11 @@ func (c *Client) StageFiles(files []string) error {
 	return err
 }
 
+// StageAll stages every change to tracked files, deletions included. Untracked
+// files are left alone so new files are never committed by accident; stage
+// those explicitly.
 func (c *Client) StageAll() error {
-	_, err := c.Run("add", "-A")
+	_, err := c.Run("add", "-u")
 	return err
 }
 
@@ -61,7 +64,8 @@ func (c *Client) DiscardFiles(files []string) error {
 	untrackedMap := make(map[string]bool)
 	for _, f := range status.Files {
 		if f.IsUntracked {
-			untrackedMap[f.Path] = true
+			// Clean drops the trailing slash on collapsed directories.
+			untrackedMap[filepath.Clean(f.Path)] = true
 		}
 	}
 
@@ -100,11 +104,43 @@ func (c *Client) DiscardFiles(files []string) error {
 	return nil
 }
 
-func (c *Client) DiscardAll() error {
-	if _, err := c.Run("restore", "."); err != nil {
+// IgnorePath appends an entry for path, relative to the repo root, to the
+// root .gitignore. Directories should end in "/". The entry is anchored with a
+// leading slash so it only matches that exact path.
+func (c *Client) IgnorePath(path string) error {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	if path == "" || strings.ContainsAny(path, "\r\n") || filepath.IsAbs(path) || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return errors.New("invalid path")
+	}
+	if strings.HasSuffix(path, "/") {
+		clean += "/"
+	}
+	// Escape glob and escape characters so the path matches literally.
+	entry := "/" + strings.NewReplacer(`\`, `\\`, "*", `\*`, "?", `\?`, "[", `\[`).Replace(clean)
+
+	ignorePath := filepath.Join(c.RepoDir, ".gitignore")
+	existing, err := os.ReadFile(ignorePath)
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	_, err := c.Run("clean", "-fd")
+	if len(existing) > 0 && existing[len(existing)-1] != '\n' {
+		entry = "\n" + entry
+	}
+	f, err := os.OpenFile(ignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := f.WriteString(entry + "\n"); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// DiscardAll reverts unstaged changes to tracked files. Untracked files are
+// left alone; delete those explicitly.
+func (c *Client) DiscardAll() error {
+	_, err := c.Run("restore", ".")
 	return err
 }
 

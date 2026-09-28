@@ -27,6 +27,8 @@ export interface FileStatus {
   isUnstaged: boolean
   isUntracked: boolean
   isConflicted: boolean
+  /** Set on a collapsed untracked directory (path ends in "/"): files inside it. */
+  fileCount?: number
 }
 
 export interface RepoStatus {
