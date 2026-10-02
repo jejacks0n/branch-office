@@ -545,6 +545,7 @@ func (s *Server) handlePRCreate(w http.ResponseWriter, r *http.Request, repo *co
 	var body struct {
 		Title string `json:"title"`
 		Body  string `json:"body"`
+		Base  string `json:"base"`
 		Draft bool   `json:"draft"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -553,7 +554,7 @@ func (s *Server) handlePRCreate(w http.ResponseWriter, r *http.Request, repo *co
 	}
 
 	ghClient := github.NewClient(repo.Path)
-	pr, err := ghClient.CreatePR(body.Title, body.Body, body.Draft)
+	pr, err := ghClient.CreatePR(body.Title, body.Body, strings.TrimSpace(body.Base), body.Draft)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

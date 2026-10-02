@@ -611,12 +611,12 @@ async function handleOpenPR() {
   }
 }
 
-async function handleCreatePR(data: { title: string; body: string; draft: boolean }) {
+async function handleCreatePR(data: { title: string; body: string; draft: boolean; base: string }) {
   if (!activeRepoId.value) return
   try {
     loading.value = true
     error.value = null
-    await api.createPR(activeRepoId.value, data.title, data.body, data.draft)
+    await api.createPR(activeRepoId.value, data.title, data.body, data.draft, data.base)
     prStatus.value = await api.getPRStatus(activeRepoId.value)
   } catch (err: any) {
     error.value = err.message || 'Failed to create PR'
@@ -1140,6 +1140,7 @@ async function handleBranchCreated(branch: string) {
     <PrModal
       v-if="status"
       :key="`${activeRepoId}:${status.branch}`"
+      :repo-id="activeRepoId"
       :show="showPrModal"
       :status="prStatus"
       :branch="status.branch"

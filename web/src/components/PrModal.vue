@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { PRStatus } from '../types'
-import { GitPullRequest, ExternalLink, X, Plus, AlertCircle, CheckCircle2 } from 'lucide-vue-next'
+import { GitPullRequest, ExternalLink, X, Plus, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-vue-next'
+import { api } from '../api'
 
 const props = defineProps<{
+  repoId?: string
   show: boolean
   status: PRStatus | null
   branch: string
@@ -11,7 +13,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'create-pr', data: { title: string; body: string; draft: boolean }): void
+  (e: 'create-pr', data: { title: string; body: string; draft: boolean; base: string }): void
   (e: 'close'): void
 }>()
 
@@ -19,11 +21,31 @@ const title = ref('')
 const body = ref('')
 const draft = ref(false)
 const isSubmitting = ref(false)
+// Empty means the repository's default branch (gh picks it).
+const base = ref('')
+const baseOptions = ref<string[]>([])
+
+// A PR can only target a branch that exists on GitHub, so offer remote branches
+// by name ("origin/main" -> "main"), minus the branch being proposed.
+async function loadBaseOptions() {
+  if (!props.repoId) return
+  try {
+    const branches = await api.getBranches(props.repoId)
+    const names = branches
+      .filter((b) => b.isRemote)
+      .map((b) => b.name.slice(b.name.indexOf('/') + 1))
+      .filter((name) => name && name !== props.branch)
+    baseOptions.value = [...new Set(names)].sort()
+  } catch {
+    baseOptions.value = []
+  }
+}
 
 watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
+      loadBaseOptions()
       if (!title.value && props.lastCommitMessage) {
         title.value = props.lastCommitMessage
       } else if (!title.value) {
@@ -41,6 +63,7 @@ async function handleSubmit() {
       title: title.value.trim(),
       body: body.value.trim(),
       draft: draft.value,
+      base: base.value,
     })
   } finally {
     isSubmitting.value = false
@@ -137,6 +160,21 @@ async function handleSubmit() {
 
         <!-- Create New PR Form -->
         <div v-else class="space-y-3.5">
+          <div class="space-y-1.5">
+            <label for="pr-base" class="text-xs font-medium text-zinc-300">Base branch</label>
+            <div class="relative">
+              <select
+                id="pr-base"
+                v-model="base"
+                class="w-full appearance-none pl-3.5 pr-9 py-2.5 bg-zinc-950 border border-zinc-700 rounded-xl text-sm text-zinc-100 font-mono focus:outline-none focus:border-purple-500"
+              >
+                <option value="">Repository default</option>
+                <option v-for="name in baseOptions" :key="name" :value="name">{{ name }}</option>
+              </select>
+              <ChevronDown class="w-4 h-4 text-zinc-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
           <div class="space-y-1.5">
             <label class="text-xs font-medium text-zinc-300">Title</label>
             <input

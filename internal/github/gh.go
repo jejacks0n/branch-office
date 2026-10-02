@@ -84,12 +84,18 @@ func (c *Client) GetPRStatus() (*PRStatus, error) {
 	}, nil
 }
 
-func (c *Client) CreatePR(title string, body string, draft bool) (*PRDetails, error) {
+// CreatePR opens a pull request for the current branch. An empty base leaves
+// the target to gh, which uses the repository's default branch.
+func (c *Client) CreatePR(title string, body string, base string, draft bool) (*PRDetails, error) {
 	if !IsGHInstalled() {
 		return nil, errors.New("gh is not installed on host machine")
 	}
 
 	args := []string{"pr", "create", "--title", title, "--body", body}
+	if base != "" {
+		// "=" form so a value starting with "-" can't be read as a flag.
+		args = append(args, "--base="+base)
+	}
 	if draft {
 		args = append(args, "--draft")
 	}

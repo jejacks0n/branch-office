@@ -158,10 +158,10 @@ export const api = {
     return request<PRStatus>(`/repos/${repoId}/pr`)
   },
 
-  async createPR(repoId: string, title: string, body: string, draft = false): Promise<PRDetails> {
+  async createPR(repoId: string, title: string, body: string, draft = false, base = ''): Promise<PRDetails> {
     return request<PRDetails>(`/repos/${repoId}/pr`, {
       method: 'POST',
-      body: JSON.stringify({ title, body, draft }),
+      body: JSON.stringify({ title, body, draft, base }),
     })
   },
 
